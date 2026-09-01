@@ -79,6 +79,11 @@ div[data-testid="stNumberInput"] input {
     background:#141414 !important; border:1px solid #2a2a2a !important;
     color:#e5e5e5 !important; border-radius:6px !important;
 }
+div[data-testid="stNumberInput"] input:disabled {
+    background:#161616 !important; border:1px solid #2a2a2a !important;
+    color:#e5e5e5 !important; -webkit-text-fill-color:#e5e5e5 !important;
+    opacity:1 !important;
+}
 div[data-testid="stTabs"] button { color:#888; font-weight:500; }
 div[data-testid="stTabs"] button[aria-selected="true"] { color:#e5e5e5; }
 div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background:#3b82f6 !important; }
@@ -229,12 +234,6 @@ with tab1:
 
     feat_names = predictor.feature_names
 
-    # ── Ensure session state keys exist ───────────────────────────────────────
-    defaults = {"Time": 80000.0, "Amount": 50.0}
-    for fn in feat_names:
-        if f"fi_{fn}" not in st.session_state:
-            st.session_state[f"fi_{fn}"] = defaults.get(fn, 0.0)
-
     # ── Load random transaction helper ────────────────────────────────────────
     X_test_df, y_test_series = load_test_rows()
 
@@ -242,6 +241,16 @@ with tab1:
         for fn in feat_names:
             st.session_state[f"fi_{fn}"] = float(row[fn])
         st.session_state["_loaded_label"] = int(label)
+
+    # ── Auto-initialize with a real test transaction on first visit ─────────
+    if "_initialized" not in st.session_state:
+        if X_test_df is not None and len(X_test_df) > 0:
+            set_loaded_row(X_test_df.iloc[0], y_test_series.iloc[0])
+        else:
+            defaults = {"Time": 80000.0, "Amount": 50.0}
+            for fn in feat_names:
+                st.session_state[f"fi_{fn}"] = defaults.get(fn, 0.0)
+        st.session_state["_initialized"] = True
 
     col_load1, col_load2, col_load3, _ = st.columns([1, 1, 1, 3])
     with col_load1:
