@@ -6,6 +6,9 @@ Returns fraud probability, verdict, and top-3 SHAP feature reasons.
 Used by both the FastAPI backend and the Streamlit app directly.
 """
 
+import warnings
+warnings.filterwarnings("ignore")
+
 import numpy as np
 import pandas as pd
 import joblib
