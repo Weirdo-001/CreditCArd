@@ -283,10 +283,13 @@ def run_training(tune_xgb: bool = True, optuna_trials: int = 50):
     np.save(os.path.join(MODELS_DIR, "y_prob_lr.npy"),  np.array(lr_res["y_prob"]))
     np.save(os.path.join(MODELS_DIR, "y_prob_if.npy"),  np.array(if_res["y_prob"]))
 
-    # Save a deployable test sample (98 fraud + 98 legit test rows, ~500KB)
-    fraud_sample = X_test[y_test == 1].copy()
+    # Save a deployable test sample (98 fraud + 98 legit test rows, unscaled for human inputs)
+    unscaled_X_test = X_test.copy()
+    unscaled_X_test[["Amount", "Time"]] = scaler.inverse_transform(unscaled_X_test[["Amount", "Time"]])
+
+    fraud_sample = unscaled_X_test[y_test == 1].copy()
     fraud_sample["Class"] = 1
-    legit_sample = X_test[y_test == 0].sample(len(fraud_sample), random_state=42).copy()
+    legit_sample = unscaled_X_test[y_test == 0].sample(len(fraud_sample), random_state=42).copy()
     legit_sample["Class"] = 0
     sample_df = pd.concat([fraud_sample, legit_sample]).sample(frac=1, random_state=42)
     sample_df.to_csv(os.path.join(MODELS_DIR, "test_sample.csv"), index=False)

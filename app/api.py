@@ -177,7 +177,7 @@ def render_dashboard():
         <div class="hero">
             <div>
                 <h1>🛡️ FraudSentinel REST API</h1>
-                <p>Decoupled Client-Server Production Engine · FastAPI + XGBoost</p>
+                <p>Decoupled Client-Server Production Engine · FastAPI + Random Forest</p>
             </div>
             <div>
                 <a href="/docs" target="_blank" class="btn">⚡ Interactive Swagger Docs (/docs)</a>
