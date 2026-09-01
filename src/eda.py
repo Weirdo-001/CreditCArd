@@ -114,19 +114,41 @@ plt.close()
 print("[EDA] correlation_with_class.png saved")
 
 
-# ── 4. Time distribution by class ─────────────────────────────────────────────
-fig, ax = plt.subplots(figsize=(12, 4))
-ax.hist(df[df["Class"]==0]["Time"]/3600, bins=100, color="#3b82f6",
-        alpha=0.6, label="Legit", density=True)
-ax.hist(df[df["Class"]==1]["Time"]/3600, bins=40, color="#ef4444",
-        alpha=0.8, label="Fraud", density=True)
-ax.set_title("Transaction Time Distribution by Class (hours)", fontsize=13)
-ax.set_xlabel("Time (hours)"); ax.legend(); ax.grid(alpha=0.3)
+# ── 4. Time distribution by class (24-Hour Clock Format) ──────────────────────
+fig, ax = plt.subplots(figsize=(12, 5))
+
+# Convert elapsed seconds to Hour of Day (0 to 23)
+df["Hour"] = (df["Time"] // 3600) % 24
+
+legit_hours = df[df["Class"] == 0]["Hour"]
+fraud_hours = df[df["Class"] == 1]["Hour"]
+
+# Plot hourly normalized distribution
+bins = np.arange(0, 25) - 0.5
+ax.hist(legit_hours, bins=bins, color="#3b82f6", alpha=0.6,
+        label="Legitimate Transactions", density=True, rwidth=0.85)
+ax.hist(fraud_hours, bins=bins, color="#ef4444", alpha=0.75,
+        label="Fraudulent Transactions", density=True, rwidth=0.85)
+
+ax.set_title("24-Hour Transaction Distribution by Class (Normalized Density)", fontsize=13, color="white", pad=12)
+ax.set_xlabel("Hour of Day (00:00 to 23:00 UTC)", fontsize=11)
+ax.set_ylabel("Transaction Density", fontsize=11)
+ax.set_xticks(range(0, 24, 2))
+ax.set_xticklabels([f"{h:02d}:00" for h in range(0, 24, 2)])
+ax.legend(frameon=True, facecolor="#141414", edgecolor="#2a2a2a", fontsize=10)
+ax.grid(alpha=0.2, linestyle="--")
+
+# Annotate late night insight
+ax.annotate('Fraud Spikes During Night Hours\n(00:00 - 05:00 AM)', xy=(2.5, 0.08), xytext=(6, 0.10),
+            arrowprops=dict(facecolor='#ef4444', shrink=0.05, width=1.5, headwidth=8),
+            fontsize=9.5, color='#ef4444', fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.3", fc="#1a0a0a", ec="#ef4444", lw=1))
+
 plt.tight_layout()
 plt.savefig(os.path.join(OUTPUT_DIR, "time_distribution.png"), dpi=150,
             bbox_inches="tight", facecolor="#0f1117")
 plt.close()
-print("[EDA] time_distribution.png saved")
+print("[EDA] time_distribution.png saved (24-Hour format)")
 
 print(f"\n[EDA] All plots saved to {OUTPUT_DIR}")
 print("\nKey stats:")

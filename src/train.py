@@ -254,15 +254,17 @@ def run_training(tune_xgb: bool = True, optuna_trials: int = 50):
     if_model, if_res  = train_isolation_forest(X_train, y_train, X_test, y_test)
     results.append(if_res);  models["isolation_forest"] = if_model
 
-    # ── Save pipelines (each includes SMOTE step — predict_proba skips it) ──
-    joblib.dump(xgb_pipe,  os.path.join(MODELS_DIR, "model.pkl"))
-    joblib.dump(lr_pipe,   os.path.join(MODELS_DIR, "lr_model.pkl"))
+    # ── Save pipelines (Random Forest designated as primary model) ──
+    joblib.dump(rf_pipe,   os.path.join(MODELS_DIR, "model.pkl"))
     joblib.dump(rf_pipe,   os.path.join(MODELS_DIR, "rf_model.pkl"))
+    joblib.dump(xgb_pipe,  os.path.join(MODELS_DIR, "xgb_model.pkl"))
+    joblib.dump(lr_pipe,   os.path.join(MODELS_DIR, "lr_model.pkl"))
     joblib.dump(if_model,  os.path.join(MODELS_DIR, "if_model.pkl"))
 
-    best = xgb_res
+    best = rf_res
     config = {
-        "best_threshold":    best["best_threshold"],
+        "best_model_name":   "Random Forest",
+        "best_threshold":    0.50,
         "xgb_params":        xgb_params,
         "smote_strategy":    SMOTE_STRATEGY,
         "feature_names":     list(X_test.columns),
@@ -276,9 +278,9 @@ def run_training(tune_xgb: bool = True, optuna_trials: int = 50):
 
     # Save test probabilities for dashboard plotting
     np.save(os.path.join(MODELS_DIR, "y_test.npy"),     y_test.values)
+    np.save(os.path.join(MODELS_DIR, "y_prob_rf.npy"),  np.array(rf_res["y_prob"]))
     np.save(os.path.join(MODELS_DIR, "y_prob_xgb.npy"), np.array(xgb_res["y_prob"]))
     np.save(os.path.join(MODELS_DIR, "y_prob_lr.npy"),  np.array(lr_res["y_prob"]))
-    np.save(os.path.join(MODELS_DIR, "y_prob_rf.npy"),  np.array(rf_res["y_prob"]))
     np.save(os.path.join(MODELS_DIR, "y_prob_if.npy"),  np.array(if_res["y_prob"]))
 
     # Save a deployable test sample (98 fraud + 98 legit test rows, ~500KB)
@@ -290,11 +292,11 @@ def run_training(tune_xgb: bool = True, optuna_trials: int = 50):
     sample_df.to_csv(os.path.join(MODELS_DIR, "test_sample.csv"), index=False)
 
     print("\n" + "=" * 60)
-    print("  TRAINING COMPLETE — ALL ARTIFACTS SAVED TO /models/")
+    print("  TRAINING COMPLETE — RANDOM FOREST SAVED AS PRIMARY MODEL")
     print("=" * 60)
-    print(f"\n  Best threshold (XGBoost): {best['best_threshold']}")
-    print(f"  Best F1 (tuned thr)     : {best['f1_best']}")
-    print(f"  ROC-AUC                 : {best['roc_auc']}")
+    print(f"\n  Best threshold (Random Forest): {best['best_threshold']}")
+    print(f"  Best F1 (tuned thr)            : {best['f1_best']}")
+    print(f"  ROC-AUC                        : {best['roc_auc']}")
 
     return models, results, config
 

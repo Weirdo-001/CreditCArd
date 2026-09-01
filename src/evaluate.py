@@ -114,12 +114,12 @@ def plot_pr_curves(y_test, y_prob_xgb, y_prob_lr, y_prob_rf, y_prob_if):
     return path
 
 
-def plot_confusion_matrix(y_test, y_prob_xgb, threshold: float):
-    y_pred = (y_prob_xgb >= threshold).astype(int)
+def plot_confusion_matrix(y_test, y_prob, threshold: float, model_name: str = "Random Forest"):
+    y_pred = (y_prob >= threshold).astype(int)
     cm = confusion_matrix(y_test, y_pred)
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(
-        cm, annot=True, fmt="d", cmap="Purples",
+        cm, annot=True, fmt="d", cmap="Blues",
         xticklabels=["Legit", "Fraud"],
         yticklabels=["Legit", "Fraud"],
         linewidths=2, linecolor="#0f1117",
@@ -128,7 +128,7 @@ def plot_confusion_matrix(y_test, y_prob_xgb, threshold: float):
     )
     ax.set_xlabel("Predicted", fontsize=12)
     ax.set_ylabel("Actual", fontsize=12)
-    ax.set_title(f"Confusion Matrix (XGBoost, thr={threshold:.3f})",
+    ax.set_title(f"Confusion Matrix ({model_name}, thr={threshold:.3f})",
                  fontsize=13, pad=12, color="white")
     plt.tight_layout()
     path = os.path.join(REPORTS_DIR, "confusion_matrix.png")
@@ -140,8 +140,8 @@ def plot_confusion_matrix(y_test, y_prob_xgb, threshold: float):
     return path
 
 
-def plot_threshold_vs_f1(y_test, y_prob_xgb):
-    precisions, recalls, thresholds = precision_recall_curve(y_test, y_prob_xgb)
+def plot_threshold_vs_f1(y_test, y_prob):
+    precisions, recalls, thresholds = precision_recall_curve(y_test, y_prob)
     f1s = 2 * precisions[:-1] * recalls[:-1] / (precisions[:-1] + recalls[:-1] + 1e-9)
     best_idx = np.argmax(f1s)
 
@@ -217,21 +217,22 @@ def generate_shap_plots(model, X_test_sample):
 
 def run_evaluation():
     y_test, y_prob_xgb, y_prob_lr, y_prob_rf, y_prob_if, config = load_artifacts()
-    threshold = config["best_threshold"]
+    threshold = config.get("best_threshold", 0.655444)
     feature_names = config["feature_names"]
+    model_name = config.get("best_model_name", "Random Forest")
 
     print("=" * 60)
-    print("  EVALUATION REPORT")
+    print(f"  EVALUATION REPORT — PRIMARY MODEL: {model_name}")
     print("=" * 60)
 
     plot_roc_curves(y_test, y_prob_xgb, y_prob_lr, y_prob_rf, y_prob_if)
     plot_pr_curves( y_test, y_prob_xgb, y_prob_lr, y_prob_rf, y_prob_if)
-    plot_confusion_matrix(y_test, y_prob_xgb, threshold)
-    plot_threshold_vs_f1(y_test, y_prob_xgb)
+    plot_confusion_matrix(y_test, y_prob_rf, threshold, model_name=model_name)
+    plot_threshold_vs_f1(y_test, y_prob_rf)
 
-    xgb_pipeline = joblib.load(os.path.join(MODELS_DIR, "model.pkl"))
-    xgb_clf = xgb_pipeline.named_steps["clf"]   # extract from ImbPipeline
-    plot_feature_importance(xgb_clf, feature_names)
+    rf_pipeline = joblib.load(os.path.join(MODELS_DIR, "model.pkl"))
+    rf_clf = rf_pipeline.named_steps["clf"]   # extract from ImbPipeline
+    plot_feature_importance(rf_clf, feature_names)
 
     print("\n[evaluate] All evaluation plots saved to /reports/")
 

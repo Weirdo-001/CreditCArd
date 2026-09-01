@@ -82,9 +82,16 @@ class FraudPredictor:
         else:
             confidence = "LOW"
 
-        # SHAP — extract raw values from classifier step (not pipeline)
+        # SHAP — handle both RandomForest (list [class0, class1]) and XGBoost (2D/3D array)
         X_values = X.values if hasattr(X, "values") else X
-        shap_vals = self.explainer.shap_values(X_values)[0]
+        raw_shap = self.explainer.shap_values(X_values)
+        if isinstance(raw_shap, list):
+            shap_vals = raw_shap[1][0] if len(raw_shap) > 1 else raw_shap[0][0]
+        elif len(raw_shap.shape) == 3:
+            shap_vals = raw_shap[0, :, 1]
+        else:
+            shap_vals = raw_shap[0]
+
         top3 = self._top3_shap(X.iloc[0], shap_vals)
 
         return {
@@ -121,7 +128,14 @@ class FraudPredictor:
     def get_shap_values(self, transaction: Dict[str, float]) -> Tuple[np.ndarray, List[str]]:
         """Return full SHAP value array + feature names for custom plots."""
         X = self._prepare(transaction)
-        shap_vals = self.explainer.shap_values(X.values)[0]
+        X_values = X.values if hasattr(X, "values") else X
+        raw_shap = self.explainer.shap_values(X_values)
+        if isinstance(raw_shap, list):
+            shap_vals = raw_shap[1][0] if len(raw_shap) > 1 else raw_shap[0][0]
+        elif len(raw_shap.shape) == 3:
+            shap_vals = raw_shap[0, :, 1]
+        else:
+            shap_vals = raw_shap[0]
         return shap_vals, self.feature_names
 
 

@@ -1,14 +1,15 @@
 {
-  "best_threshold": 0.987065,
+  "best_model_name": "Random Forest",
+  "best_threshold": 0.50,
   "xgb_params": {
-    "n_estimators": 667,
-    "max_depth": 9,
-    "learning_rate": 0.031309247326259906,
-    "subsample": 0.7767011719742382,
-    "colsample_bytree": 0.6408912861207944,
-    "min_child_weight": 6,
-    "gamma": 3.1924162110483567,
-    "scale_pos_weight": 524.7379957813263,
+    "n_estimators": 747,
+    "max_depth": 8,
+    "learning_rate": 0.04415448810976556,
+    "subsample": 0.7091081701736945,
+    "colsample_bytree": 0.6520963941283994,
+    "min_child_weight": 4,
+    "gamma": 0.010744631889607725,
+    "scale_pos_weight": 344.55530950255996,
     "eval_metric": "aucpr",
     "tree_method": "hist",
     "random_state": 42,
@@ -63,11 +64,11 @@
       "best_threshold": 0.655444
     },
     "XGBoost (Optuna-tuned)": {
-      "roc_auc": 0.9765,
-      "pr_auc": 0.877,
-      "f1_default": 0.6617,
-      "f1_best": 0.8677,
-      "best_threshold": 0.987065
+      "roc_auc": 0.9783,
+      "pr_auc": 0.8788,
+      "f1_default": 0.7598,
+      "f1_best": 0.8778,
+      "best_threshold": 0.996354
     },
     "Isolation Forest": {
       "roc_auc": 0.9552,

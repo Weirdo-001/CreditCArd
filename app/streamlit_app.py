@@ -199,8 +199,8 @@ def load_test_rows():
 
 
 # ── helper charts ─────────────────────────────────────────────────────────────
-def gauge(prob):
-    color = "#ef4444" if prob > 0.5 else "#10b981"
+def gauge(prob, is_fraud=False):
+    color = "#ef4444" if is_fraud else "#10b981"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=prob * 100,
@@ -211,9 +211,8 @@ def gauge(prob):
             "bgcolor": "#1a1a1a",
             "borderwidth": 0,
             "steps": [
-                {"range": [0,  40],  "color": "#0a1a0e"},
-                {"range": [40, 65],  "color": "#1a1500"},
-                {"range": [65, 100], "color": "#1a0a0a"},
+                {"range": [0,  50],  "color": "#0a1a0e"},
+                {"range": [50, 100], "color": "#1a0a0a"},
             ],
         },
         domain={"x": [0, 1], "y": [0, 1]},
@@ -251,7 +250,7 @@ def shap_bar(top3):
 st.markdown("""
 <div class="hero">
   <h1>🛡️ FraudSentinel</h1>
-  <p>Credit Card Fraud Detection · XGBoost + SHAP · End-to-end verified pipeline</p>
+  <p>Credit Card Fraud Detection · Random Forest + SHAP · End-to-end verified pipeline</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -366,7 +365,7 @@ with tab1:
         with r1:
             st.markdown('<div class="sec">Fraud Probability</div>',
                         unsafe_allow_html=True)
-            st.plotly_chart(gauge(res["probability"]), use_container_width=True)
+            st.plotly_chart(gauge(res["probability"], res["is_fraud"]), use_container_width=True)
             conf_c = {"HIGH": "#10b981", "MEDIUM": "#f59e0b", "LOW": "#ef4444"}
             ck = res["confidence"]
             st.markdown(
