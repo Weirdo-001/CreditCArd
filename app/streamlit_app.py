@@ -69,21 +69,56 @@ html, body, [class*="css"] { font-family:'Inter',sans-serif; }
 }
 
 /* section heading */
-.sec { font-size:.85rem; font-weight:600; color:#888;
+.sec { font-size:.85rem; font-weight:700; color:#60a5fa !important;
        text-transform:uppercase; letter-spacing:.1em;
        border-bottom:1px solid #2a2a2a; padding-bottom:.4rem;
        margin-bottom:.9rem; }
 
+/* Force widget label visibility (V1..V28, Time, Amount) */
+label[data-testid="stWidgetLabel"],
+label[data-testid="stWidgetLabel"] p,
+div[data-testid="stWidgetLabel"] p,
+label p {
+    color: #e5e5e5 !important;
+    -webkit-text-fill-color: #e5e5e5 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    opacity: 1 !important;
+}
+
+/* Captions and subtext */
+div[data-testid="stCaptionContainer"],
+div[data-testid="stCaptionContainer"] p,
+.stCaption {
+    color: #a3a3a3 !important;
+    font-size: 0.82rem !important;
+}
+
+/* form container */
+div[data-testid="stForm"] {
+    background: #141414 !important;
+    border: 1px solid #2a2a2a !important;
+    border-radius: 12px !important;
+}
+
 /* form inputs */
 div[data-testid="stNumberInput"] input {
-    background:#141414 !important; border:1px solid #2a2a2a !important;
-    color:#e5e5e5 !important; border-radius:6px !important;
+    background:#0a0a0a !important; border:1px solid #333333 !important;
+    color:#ffffff !important; -webkit-text-fill-color:#ffffff !important;
+    border-radius:6px !important; font-weight:600 !important;
 }
 div[data-testid="stNumberInput"] input:disabled {
     background:#161616 !important; border:1px solid #2a2a2a !important;
-    color:#e5e5e5 !important; -webkit-text-fill-color:#e5e5e5 !important;
-    opacity:1 !important;
+    color:#ffffff !important; -webkit-text-fill-color:#ffffff !important;
+    opacity:1 !important; font-weight:600 !important;
 }
+
+/* Stepper buttons */
+div[data-testid="stNumberInput"] button {
+    background:#222222 !important; color:#ffffff !important;
+    border:1px solid #333333 !important;
+}
+
 div[data-testid="stTabs"] button { color:#888; font-weight:500; }
 div[data-testid="stTabs"] button[aria-selected="true"] { color:#e5e5e5; }
 div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background:#3b82f6 !important; }
