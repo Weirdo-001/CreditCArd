@@ -1,0 +1,6 @@
+creditcard.csv
+*.npy
+__pycache__/
+*.pyc
+.env
+*.log
