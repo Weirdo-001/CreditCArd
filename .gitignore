@@ -1,6 +1,11 @@
-creditcard.csv
-*.npy
+# Raw dataset — too large for git, never commit
+data/creditcard.csv
+
+# Python cache
 __pycache__/
 *.pyc
 .env
 *.log
+
+# Notebook checkpoints
+.ipynb_checkpoints/
