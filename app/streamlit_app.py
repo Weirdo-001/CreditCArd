@@ -141,15 +141,19 @@ def load_eval():
 
 @st.cache_data(show_spinner="Loading test transactions…")
 def load_test_rows():
-    """Reproduce the exact train/test split and return test X + y."""
-    if not os.path.exists(DATA_PATH):
-        return None, None
-    df = pd.read_csv(DATA_PATH)
-    X  = df.drop(columns=["Class"])
-    y  = df["Class"]
-    _, X_test, _, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42)
-    return X_test.reset_index(drop=True), y_test.reset_index(drop=True)
+    """Load sample test rows (supports both cloud deployment via test_sample.csv and local full dataset)."""
+    sample_path = os.path.join(MODELS_DIR, "test_sample.csv")
+    if os.path.exists(sample_path):
+        df = pd.read_csv(sample_path)
+        return df.drop(columns=["Class"]).reset_index(drop=True), df["Class"].reset_index(drop=True)
+    if os.path.exists(DATA_PATH):
+        df = pd.read_csv(DATA_PATH)
+        X  = df.drop(columns=["Class"])
+        y  = df["Class"]
+        _, X_test, _, y_test = train_test_split(
+            X, y, test_size=0.2, stratify=y, random_state=42)
+        return X_test.reset_index(drop=True), y_test.reset_index(drop=True)
+    return None, None
 
 
 # ── helper charts ─────────────────────────────────────────────────────────────
