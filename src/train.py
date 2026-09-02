@@ -264,7 +264,7 @@ def run_training(tune_xgb: bool = True, optuna_trials: int = 50):
     best = rf_res
     config = {
         "best_model_name":   "Random Forest",
-        "best_threshold":    0.50,
+        "best_threshold":    best["best_threshold"],
         "xgb_params":        xgb_params,
         "smote_strategy":    SMOTE_STRATEGY,
         "feature_names":     list(X_test.columns),
