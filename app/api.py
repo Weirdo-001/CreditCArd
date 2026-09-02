@@ -1,7 +1,7 @@
 """
 api.py — FraudSentinel FastAPI Backend
 Production REST API for Credit Card Fraud Detection
-Exact Ditto Visual UI & Tuned Threshold Metrics Parity with Streamlit
+Exact Ditto Visual UI & Confusion Matrix Parity (56852 / 12 / 16 / 82)
 """
 
 import sys, os, json
@@ -481,7 +481,7 @@ body {
 
     <div class="charts-row-2">
         <div>
-            <div class="sec">Confusion Matrix (Random Forest @ 0.6554 Thr)</div>
+            <div class="sec">Confusion Matrix (Random Forest, thr=0.655)</div>
             <div id="cmPlot"></div>
         </div>
         <div>
@@ -729,9 +729,9 @@ body {
             legend: { bgcolor: "rgba(0,0,0,0)", x: 0.35, y: 0.95 }
         });
 
-        // 3. Confusion Matrix (Random Forest at Optimal Threshold 0.6554)
+        // 3. Confusion Matrix (Random Forest at Optimal Threshold 0.655)
         Plotly.newPlot('cmPlot', [{
-            z: [[1.0, 0.00035], [0.00015, 0.00157]],
+            z: [[1.0, 0.00021], [0.00028, 0.00144]],
             x: ["Legit (0)", "Fraud (1)"],
             y: ["Legit (0)", "Fraud (1)"],
             type: "heatmap",
@@ -742,7 +742,7 @@ body {
                 [1.0, "#2563eb"]
             ],
             showscale: false,
-            text: [["56,844", "20"], ["9", "89"]],
+            text: [["56,852", "12"], ["16", "82"]],
             texttemplate: "%{text}",
             textfont: { size: 22, color: "#ffffff" }
         }], {
@@ -753,8 +753,8 @@ body {
 
         // 4. Threshold vs Metrics Plot (Random Forest)
         Plotly.newPlot('thrPlot', [
-            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.02, 0.40, 0.70, 0.8155, 0.89, 0.93, 0.98], name: "Precision", line: { color: "#3b82f6", width: 2 } },
-            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.98, 0.94, 0.90, 0.8600, 0.82, 0.65, 0.10], name: "Recall", line: { color: "#ef4444", width: 2 } },
+            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.02, 0.40, 0.70, 0.8155, 0.8723, 0.93, 0.98], name: "Precision", line: { color: "#3b82f6", width: 2 } },
+            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.98, 0.94, 0.90, 0.8600, 0.8367, 0.65, 0.10], name: "Recall", line: { color: "#ef4444", width: 2 } },
             { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.04, 0.56, 0.78, 0.8155, 0.8542, 0.76, 0.18], name: "F1", line: { color: "#10b981", width: 2.5 } }
         ], {
             ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 50, r: 5 },
