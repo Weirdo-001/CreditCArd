@@ -148,11 +148,11 @@ def plot_threshold_vs_f1(y_test, y_prob):
     fig, ax = plt.subplots(figsize=(9, 4))
     ax.plot(thresholds, precisions[:-1], color=COLORS["legit"],  lw=2, label="Precision")
     ax.plot(thresholds, recalls[:-1],    color=COLORS["fraud"],  lw=2, label="Recall")
-    ax.plot(thresholds, f1s,             color=COLORS["xgb"],    lw=2, label="F1")
+    ax.plot(thresholds, f1s,             color=COLORS["rf"],     lw=2, label="F1")
     ax.axvline(thresholds[best_idx], color="white", linestyle="--",
                lw=1.5, label=f"Best thr={thresholds[best_idx]:.3f}")
     ax.set_xlabel("Decision Threshold")
-    ax.set_title("Precision / Recall / F1 vs Threshold (XGBoost)",
+    ax.set_title("Precision / Recall / F1 vs Threshold (Random Forest)",
                  fontsize=13, pad=12, color="white")
     ax.legend(facecolor="#1a1d2e", edgecolor="#3d4166")
     ax.grid(True, alpha=0.3)
@@ -168,14 +168,14 @@ def plot_feature_importance(model, feature_names, top_n: int = 20):
     importances = model.feature_importances_
     indices = np.argsort(importances)[-top_n:]
     fig, ax = plt.subplots(figsize=(8, 7))
-    colors = plt.cm.Purples(np.linspace(0.4, 1.0, len(indices)))
+    colors = plt.cm.Greens(np.linspace(0.4, 1.0, len(indices)))
     bars = ax.barh(
         [feature_names[i] for i in indices],
         importances[indices],
         color=colors, edgecolor="#0f1117", height=0.7,
     )
     ax.set_xlabel("Importance Score")
-    ax.set_title(f"Top {top_n} Feature Importances (XGBoost)",
+    ax.set_title(f"Top {top_n} Feature Importances (Random Forest)",
                  fontsize=13, pad=12, color="white")
     ax.grid(True, axis="x", alpha=0.3)
     plt.tight_layout()
@@ -195,7 +195,7 @@ def generate_shap_plots(model, X_test_sample):
     # ── Global summary ────────────────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(9, 7))
     shap.summary_plot(shap_values, X_test_sample, show=False,
-                      plot_type="bar", color=COLORS["xgb"])
+                      plot_type="bar", color=COLORS["rf"])
     plt.title("SHAP — Global Feature Importance", color="white", pad=10)
     plt.tight_layout()
     path_global = os.path.join(REPORTS_DIR, "shap_global.png")
