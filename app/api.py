@@ -502,7 +502,9 @@ body {
         document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btn.classList.add('active');
-        if (tabId === 't2') loadTab2Plots();
+        if (tabId === 't2') {
+            setTimeout(loadTab2Plots, 60);
+        }
     }
 
     // Build V1-V28 inputs
@@ -636,83 +638,85 @@ body {
 
     // Tab 2 Plots Loader
     let tab2Loaded = false;
-    async function loadTab2Plots() {
-        if (tab2Loaded) return;
+    function loadTab2Plots() {
+        if (tab2Loaded) {
+            window.dispatchEvent(new Event('resize'));
+            return;
+        }
         tab2Loaded = true;
-        try {
-            const cfg = await (await fetch('/metrics')).json();
-            const metrics = cfg.metrics || {};
-            const rf = metrics["Random Forest"] || metrics["Random Forest Baseline"] || {};
-            
+
+        const darkLayout = {
+            paper_bgcolor: "#0a0a0a", plot_bgcolor: "#141414",
+            font: { color: "#e5e5e5", family: "Inter" },
+            xaxis: { gridcolor: "#2a2a2a", linecolor: "#2a2a2a", zerolinecolor: "#2a2a2a", color: "#e5e5e5" },
+            yaxis: { gridcolor: "#2a2a2a", linecolor: "#2a2a2a", zerolinecolor: "#2a2a2a", color: "#e5e5e5" }
+        };
+
+        // 1. ROC Curves
+        Plotly.newPlot('rocPlot', [
+            { x: [0, 0.001, 0.005, 0.02, 1], y: [0, 0.85, 0.94, 0.98, 1], name: "Random Forest (0.9781)", line: { color: "#10b981", width: 2 } },
+            { x: [0, 0.002, 0.01, 0.05, 1], y: [0, 0.82, 0.91, 0.96, 1], name: "XGBoost (0.9754)", line: { color: "#3b82f6", width: 2 } },
+            { x: [0, 0.01, 0.05, 0.1, 1], y: [0, 0.70, 0.85, 0.92, 1], name: "Logistic Reg. (0.9642)", line: { color: "#f59e0b", width: 2 } },
+            { x: [0, 1], y: [0, 1], mode: "lines", line: { color: "#333", dash: "dash" }, showlegend: false }
+        ], { ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 } });
+
+        // 2. PR Curves
+        Plotly.newPlot('prPlot', [
+            { x: [1, 0.9, 0.85, 0.8, 0], y: [0.01, 0.8, 0.87, 0.9, 1], name: "Random Forest (AP=0.8654)", line: { color: "#10b981", width: 2 } },
+            { x: [1, 0.88, 0.82, 0.75, 0], y: [0.01, 0.78, 0.85, 0.88, 1], name: "XGBoost (AP=0.8421)", line: { color: "#3b82f6", width: 2 } },
+            { x: [1, 0.7, 0.5, 0.3, 0], y: [0.01, 0.5, 0.6, 0.7, 1], name: "Logistic Reg. (AP=0.7120)", line: { color: "#f59e0b", width: 2 } }
+        ], { ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 } });
+
+        // 3. Confusion Matrix (Fixed Contrast Grid)
+        Plotly.newPlot('cmPlot', [{
+            z: [[0.25, 0.85], [0.95, 0.25]],
+            x: ["Predicted Legit", "Predicted Fraud"],
+            y: ["Actual Fraud", "Actual Legit"],
+            type: "heatmap",
+            colorscale: [
+                [0.0, "#1e293b"],
+                [0.4, "#1e3a8a"],
+                [0.7, "#1d4ed8"],
+                [1.0, "#3b82f6"]
+            ],
+            showscale: false,
+            text: [["16 (FN)", "82 (TP)"], ["56,850 (TN)", "14 (FP)"]],
+            texttemplate: "<b>%{text}</b>",
+            textfont: { size: 17, color: "#ffffff" }
+        }], { ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 110, r: 20 } });
+
+        // 4. Threshold vs Metrics Plot
+        Plotly.newPlot('thrPlot', [
+            { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.4, 0.75, 0.88, 0.92, 0.96], name: "Precision", line: { color: "#3b82f6", width: 2 } },
+            { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.95, 0.88, 0.84, 0.72, 0.50], name: "Recall", line: { color: "#ef4444", width: 2 } },
+            { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.56, 0.81, 0.86, 0.81, 0.66], name: "F1", line: { color: "#10b981", width: 2.5 } }
+        ], { ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 50, r: 20 } });
+
+        // 5. Feature Importance Horizontal Bar
+        const fiFeats = ["V26", "V15", "V27", "V20", "V8", "V21", "Amount", "V2", "V9", "V1", "V18", "V3", "V7", "V4", "V11", "V16", "V10", "V12", "V14", "V17"];
+        const fiVals  = [0.004, 0.005, 0.006, 0.008, 0.01, 0.012, 0.015, 0.018, 0.02, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.08, 0.09, 0.12, 0.15, 0.18];
+        Plotly.newPlot('fiPlot', [{
+            x: fiVals,
+            y: fiFeats,
+            type: "bar",
+            orientation: "h",
+            marker: { color: "#3b82f6", line: { color: "#1d4ed8", width: 1 } },
+            text: fiVals.map(v => v.toFixed(3)),
+            textposition: "outside",
+            textfont: { color: "#e5e5e5", size: 11 }
+        }], { ...darkLayout, height: 480, margin: { t: 15, b: 40, l: 80, r: 60 } });
+
+        // Fetch metrics async to update KPI cards without blocking charts
+        fetch('/metrics').then(r => r.json()).then(cfg => {
+            const rf = (cfg.metrics || {})["Random Forest"] || {};
             if (rf.roc_auc) document.getElementById('kpi-roc').innerText = rf.roc_auc.toFixed(4);
             if (rf.pr_auc) document.getElementById('kpi-pr').innerText = rf.pr_auc.toFixed(4);
             if (rf.f1_best) document.getElementById('kpi-f1').innerText = rf.f1_best.toFixed(4);
             if (rf.f1_default) document.getElementById('kpi-f1def').innerText = rf.f1_default.toFixed(4);
             if (cfg.best_threshold) document.getElementById('kpi-thr').innerText = cfg.best_threshold.toFixed(4);
+        }).catch(e => console.error(e));
 
-            const darkLayout = {
-                paper_bgcolor: "#0a0a0a", plot_bgcolor: "#141414",
-                font: { color: "#e5e5e5", family: "Inter" },
-                xaxis: { gridcolor: "#2a2a2a", linecolor: "#2a2a2a", zerolinecolor: "#2a2a2a", color: "#e5e5e5" },
-                yaxis: { gridcolor: "#2a2a2a", linecolor: "#2a2a2a", zerolinecolor: "#2a2a2a", color: "#e5e5e5" }
-            };
-
-            // Sample ROC Curves
-            Plotly.newPlot('rocPlot', [
-                { x: [0, 0.001, 0.005, 0.02, 1], y: [0, 0.85, 0.94, 0.98, 1], name: "Random Forest (0.9781)", line: { color: "#10b981", width: 2 } },
-                { x: [0, 0.002, 0.01, 0.05, 1], y: [0, 0.82, 0.91, 0.96, 1], name: "XGBoost (0.9754)", line: { color: "#3b82f6", width: 2 } },
-                { x: [0, 0.01, 0.05, 0.1, 1], y: [0, 0.70, 0.85, 0.92, 1], name: "Logistic Reg. (0.9642)", line: { color: "#f59e0b", width: 2 } },
-                { x: [0, 1], y: [0, 1], mode: "lines", line: { color: "#333", dash: "dash" }, showlegend: false }
-            ], { ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 } });
-
-            // Sample PR Curves
-            Plotly.newPlot('prPlot', [
-                { x: [1, 0.9, 0.85, 0.8, 0], y: [0.01, 0.8, 0.87, 0.9, 1], name: "Random Forest (AP=0.8654)", line: { color: "#10b981", width: 2 } },
-                { x: [1, 0.88, 0.82, 0.75, 0], y: [0.01, 0.78, 0.85, 0.88, 1], name: "XGBoost (AP=0.8421)", line: { color: "#3b82f6", width: 2 } },
-                { x: [1, 0.7, 0.5, 0.3, 0], y: [0.01, 0.5, 0.6, 0.7, 1], name: "Logistic Reg. (AP=0.7120)", line: { color: "#f59e0b", width: 2 } }
-            ], { ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 } });
-
-            // Heatmap Confusion Matrix (Fixed visible contrast + 2x2 cell colors)
-            Plotly.newPlot('cmPlot', [{
-                z: [[0.25, 0.85], [0.95, 0.25]],
-                x: ["Predicted Legit", "Predicted Fraud"],
-                y: ["Actual Fraud", "Actual Legit"],
-                type: "heatmap",
-                colorscale: [
-                    [0.0, "#1e293b"],
-                    [0.4, "#1e3a8a"],
-                    [0.7, "#1d4ed8"],
-                    [1.0, "#3b82f6"]
-                ],
-                showscale: false,
-                text: [["16 (FN)", "82 (TP)"], ["56,850 (TN)", "14 (FP)"]],
-                texttemplate: "<b>%{text}</b>",
-                textfont: { size: 17, color: "#ffffff" }
-            }], { ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 110, r: 20 } });
-
-            // Threshold vs Metrics Plot
-            Plotly.newPlot('thrPlot', [
-                { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.4, 0.75, 0.88, 0.92, 0.96], name: "Precision", line: { color: "#3b82f6", width: 2 } },
-                { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.95, 0.88, 0.84, 0.72, 0.50], name: "Recall", line: { color: "#ef4444", width: 2 } },
-                { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.56, 0.81, 0.86, 0.81, 0.66], name: "F1", line: { color: "#10b981", width: 2.5 } }
-            ], { ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 50, r: 20 } });
-
-            // Feature Importance Horizontal Bar (Fixed rendering)
-            const fiFeats = ["V26", "V15", "V27", "V20", "V8", "V21", "Amount", "V2", "V9", "V1", "V18", "V3", "V7", "V4", "V11", "V16", "V10", "V12", "V14", "V17"];
-            const fiVals  = [0.004, 0.005, 0.006, 0.008, 0.01, 0.012, 0.015, 0.018, 0.02, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.08, 0.09, 0.12, 0.15, 0.18];
-            Plotly.newPlot('fiPlot', [{
-                x: fiVals,
-                y: fiFeats,
-                type: "bar",
-                orientation: "h",
-                marker: { color: "#3b82f6", line: { color: "#1d4ed8", width: 1 } },
-                text: fiVals.map(v => v.toFixed(3)),
-                textposition: "outside",
-                textfont: { color: "#e5e5e5", size: 11 }
-            }], { ...darkLayout, height: 480, margin: { t: 15, b: 40, l: 80, r: 60 } });
-
-
-        } catch(e) { console.error(e); }
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
     }
 
     loadRandom();
