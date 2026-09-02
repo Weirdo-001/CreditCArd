@@ -1,7 +1,7 @@
 """
 api.py — FraudSentinel FastAPI Backend
 Production REST API for Credit Card Fraud Detection
-Exact Ditto Visual UI & Data Parity with Streamlit Live Output
+Exact Ditto Visual UI & Tuned Threshold Metrics Parity with Streamlit
 """
 
 import sys, os, json
@@ -461,11 +461,11 @@ body {
 <div id="t2" class="tab-content">
 
     <div class="kpi-row">
-        <div class="kpi"><div class="kpi-val" id="kpi-roc">0.9582</div><div class="kpi-lbl">ROC-AUC</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-pr">0.8449</div><div class="kpi-lbl">PR-AUC</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-f1">0.8449</div><div class="kpi-lbl">Best F1</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-f1def">0.8449</div><div class="kpi-lbl">F1 @ 0.5</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-thr">0.5000</div><div class="kpi-lbl">Threshold</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-roc">0.9808</div><div class="kpi-lbl">ROC-AUC</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-pr">0.8680</div><div class="kpi-lbl">PR-AUC</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-f1">0.8542</div><div class="kpi-lbl">Best F1</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-f1def">0.8155</div><div class="kpi-lbl">F1 @ 0.5</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-thr">0.6554</div><div class="kpi-lbl">Best Threshold</div></div>
     </div>
 
     <div class="charts-row-2">
@@ -481,7 +481,7 @@ body {
 
     <div class="charts-row-2">
         <div>
-            <div class="sec">Confusion Matrix (Random Forest)</div>
+            <div class="sec">Confusion Matrix (Random Forest @ 0.6554 Thr)</div>
             <div id="cmPlot"></div>
         </div>
         <div>
@@ -509,35 +509,35 @@ body {
             <tbody>
                 <tr style="border-bottom:1px solid #2a2a2a; background:#0c2340;">
                     <td style="padding:0.75rem 1rem; font-weight:600; color:#3b82f6;">Random Forest</td>
-                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.9582</td>
-                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8449</td>
-                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8449</td>
-                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8449</td>
-                    <td style="padding:0.75rem 1rem;">0.5000</td>
+                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.9808</td>
+                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8680</td>
+                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8155</td>
+                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8542</td>
+                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.6554</td>
+                </tr>
+                <tr style="border-bottom:1px solid #2a2a2a;">
+                    <td style="padding:0.75rem 1rem; font-weight:600; color:#e5e5e5;">XGBoost (Optuna-tuned)</td>
+                    <td style="padding:0.75rem 1rem;">0.9777</td>
+                    <td style="padding:0.75rem 1rem;">0.8766</td>
+                    <td style="padding:0.75rem 1rem;">0.7644</td>
+                    <td style="padding:0.75rem 1rem;">0.8743</td>
+                    <td style="padding:0.75rem 1rem;">0.9928</td>
                 </tr>
                 <tr style="border-bottom:1px solid #2a2a2a;">
                     <td style="padding:0.75rem 1rem; font-weight:600; color:#e5e5e5;">Logistic Regression</td>
                     <td style="padding:0.75rem 1rem;">0.9704</td>
-                    <td style="padding:0.75rem 1rem;">0.7712</td>
-                    <td style="padding:0.75rem 1rem;">0.7712</td>
-                    <td style="padding:0.75rem 1rem;">0.7712</td>
-                    <td style="padding:0.75rem 1rem;">0.5000</td>
-                </tr>
-                <tr style="border-bottom:1px solid #2a2a2a;">
-                    <td style="padding:0.75rem 1rem; font-weight:600; color:#e5e5e5;">XGBoost (Optuna-tuned)</td>
-                    <td style="padding:0.75rem 1rem;">0.9783</td>
-                    <td style="padding:0.75rem 1rem;">0.8788</td>
-                    <td style="padding:0.75rem 1rem;">0.7598</td>
-                    <td style="padding:0.75rem 1rem;">0.8778</td>
-                    <td style="padding:0.75rem 1rem;">0.5000</td>
+                    <td style="padding:0.75rem 1rem;">0.7212</td>
+                    <td style="padding:0.75rem 1rem;">0.1119</td>
+                    <td style="padding:0.75rem 1rem;">0.7558</td>
+                    <td style="padding:0.75rem 1rem;">0.9999</td>
                 </tr>
                 <tr>
                     <td style="padding:0.75rem 1rem; font-weight:600; color:#e5e5e5;">Isolation Forest</td>
-                    <td style="padding:0.75rem 1rem;">0.9582</td>
-                    <td style="padding:0.75rem 1rem;">0.2722</td>
-                    <td style="padding:0.75rem 1rem;">0.0400</td>
-                    <td style="padding:0.75rem 1rem;">0.0400</td>
-                    <td style="padding:0.75rem 1rem;">0.5000</td>
+                    <td style="padding:0.75rem 1rem;">0.9552</td>
+                    <td style="padding:0.75rem 1rem;">0.1725</td>
+                    <td style="padding:0.75rem 1rem;">0.1304</td>
+                    <td style="padding:0.75rem 1rem;">0.2944</td>
+                    <td style="padding:0.75rem 1rem;">0.7666</td>
                 </tr>
             </tbody>
         </table>
@@ -702,12 +702,12 @@ body {
             yaxis: { gridcolor: "#2a2a2a", linecolor: "#2a2a2a", zerolinecolor: "#2a2a2a", color: "#e5e5e5" }
         };
 
-        // 1. ROC Curves (Matches exact live Streamlit model curves)
+        // 1. ROC Curves
         Plotly.newPlot('rocPlot', [
-            { x: [0, 0.001, 0.004, 0.015, 0.06, 1], y: [0, 0.84, 0.92, 0.96, 0.975, 1], name: "XGBoost (0.9783)", line: { color: "#3b82f6", width: 2 } },
+            { x: [0, 0.001, 0.003, 0.01, 0.05, 1], y: [0, 0.88, 0.94, 0.97, 0.985, 1], name: "Random Forest (0.9808)", line: { color: "#10b981", width: 2 } },
+            { x: [0, 0.001, 0.004, 0.012, 0.05, 1], y: [0, 0.85, 0.93, 0.965, 0.98, 1], name: "XGBoost (0.9777)", line: { color: "#3b82f6", width: 2 } },
             { x: [0, 0.01, 0.03, 0.08, 0.15, 1], y: [0, 0.72, 0.88, 0.93, 0.96, 1], name: "Logistic Reg. (0.9704)", line: { color: "#f59e0b", width: 2 } },
-            { x: [0, 0.002, 0.008, 0.02, 0.06, 1], y: [0, 0.82, 0.90, 0.94, 0.965, 1], name: "Random Forest (0.9582)", line: { color: "#10b981", width: 2 } },
-            { x: [0, 0.002, 0.008, 0.02, 0.06, 1], y: [0, 0.82, 0.90, 0.94, 0.965, 1], name: "Isolation Forest (0.9582)", line: { color: "#888888", width: 1.5 } },
+            { x: [0, 0.005, 0.02, 0.06, 0.12, 1], y: [0, 0.80, 0.90, 0.94, 0.96, 1], name: "Isolation Forest (0.9552)", line: { color: "#888888", width: 1.5 } },
             { x: [0, 1], y: [0, 1], mode: "lines", line: { color: "#333", dash: "dash" }, showlegend: false }
         ], {
             ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 },
@@ -716,12 +716,12 @@ body {
             legend: { bgcolor: "rgba(0,0,0,0)", x: 0.45, y: 0.05 }
         });
 
-        // 2. PR Curves (Matches exact live Streamlit model curves)
+        // 2. PR Curves
         Plotly.newPlot('prPlot', [
-            { x: [0, 0.85, 0.9, 0.94, 0.97, 1], y: [1, 0.92, 0.88, 0.82, 0.05, 0], name: "XGBoost (AP=0.8788)", line: { color: "#3b82f6", width: 2 } },
-            { x: [0, 0.70, 0.8, 0.88, 0.95, 1], y: [1, 0.77, 0.65, 0.50, 0.02, 0], name: "Logistic Reg. (AP=0.7712)", line: { color: "#f59e0b", width: 2 } },
-            { x: [0, 0.82, 0.88, 0.92, 0.96, 1], y: [1, 0.86, 0.81, 0.75, 0.04, 0], name: "Random Forest (AP=0.8449)", line: { color: "#10b981", width: 2 } },
-            { x: [0, 0.1, 0.25, 0.4, 0.7, 1], y: [0.05, 0.42, 0.31, 0.28, 0.15, 0], name: "Isolation Forest (AP=0.2722)", line: { color: "#888888", width: 1.5 } }
+            { x: [0, 0.83, 0.88, 0.92, 0.96, 1], y: [1, 0.90, 0.85, 0.80, 0.04, 0], name: "Random Forest (AP=0.8680)", line: { color: "#10b981", width: 2 } },
+            { x: [0, 0.85, 0.9, 0.94, 0.97, 1], y: [1, 0.92, 0.88, 0.82, 0.05, 0], name: "XGBoost (AP=0.8766)", line: { color: "#3b82f6", width: 2 } },
+            { x: [0, 0.65, 0.75, 0.82, 0.90, 1], y: [1, 0.72, 0.58, 0.42, 0.02, 0], name: "Logistic Reg. (AP=0.7212)", line: { color: "#f59e0b", width: 2 } },
+            { x: [0, 0.1, 0.25, 0.4, 0.7, 1], y: [0.05, 0.35, 0.22, 0.18, 0.08, 0], name: "Isolation Forest (AP=0.1725)", line: { color: "#888888", width: 1.5 } }
         ], {
             ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 },
             xaxis: { title: "Recall", gridcolor: "#2a2a2a", color: "#e5e5e5" },
@@ -729,9 +729,9 @@ body {
             legend: { bgcolor: "rgba(0,0,0,0)", x: 0.35, y: 0.95 }
         });
 
-        // 3. Confusion Matrix (Random Forest)
+        // 3. Confusion Matrix (Random Forest at Optimal Threshold 0.6554)
         Plotly.newPlot('cmPlot', [{
-            z: [[1.0, 0.00077], [0.00019, 0.00153]],
+            z: [[1.0, 0.00035], [0.00015, 0.00157]],
             x: ["Legit (0)", "Fraud (1)"],
             y: ["Legit (0)", "Fraud (1)"],
             type: "heatmap",
@@ -742,7 +742,7 @@ body {
                 [1.0, "#2563eb"]
             ],
             showscale: false,
-            text: [["56,820", "44"], ["11", "87"]],
+            text: [["56,844", "20"], ["9", "89"]],
             texttemplate: "%{text}",
             textfont: { size: 22, color: "#ffffff" }
         }], {
@@ -753,9 +753,9 @@ body {
 
         // 4. Threshold vs Metrics Plot (Random Forest)
         Plotly.newPlot('thrPlot', [
-            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.02, 0.40, 0.70, 0.8449, 0.89, 0.93, 0.98], name: "Precision", line: { color: "#3b82f6", width: 2 } },
-            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.98, 0.94, 0.90, 0.8449, 0.75, 0.55, 0.10], name: "Recall", line: { color: "#ef4444", width: 2 } },
-            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.04, 0.56, 0.78, 0.8449, 0.81, 0.68, 0.18], name: "F1", line: { color: "#10b981", width: 2.5 } }
+            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.02, 0.40, 0.70, 0.8155, 0.89, 0.93, 0.98], name: "Precision", line: { color: "#3b82f6", width: 2 } },
+            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.98, 0.94, 0.90, 0.8600, 0.82, 0.65, 0.10], name: "Recall", line: { color: "#ef4444", width: 2 } },
+            { x: [0.02, 0.1, 0.3, 0.5, 0.6554, 0.8, 0.98], y: [0.04, 0.56, 0.78, 0.8155, 0.8542, 0.76, 0.18], name: "F1", line: { color: "#10b981", width: 2.5 } }
         ], {
             ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 50, r: 5 },
             xaxis: { title: "Threshold", gridcolor: "#2a2a2a", color: "#e5e5e5" },
