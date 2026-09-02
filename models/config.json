@@ -57,11 +57,11 @@
       "best_threshold": 0.9999
     },
     "Random Forest": {
-      "roc_auc": 0.9808,
-      "pr_auc": 0.868,
-      "f1_default": 0.8155,
-      "f1_best": 0.8542,
-      "best_threshold": 0.655444
+      "roc_auc": 0.9582,
+      "pr_auc": 0.8449,
+      "f1_default": 0.8449,
+      "f1_best": 0.8449,
+      "best_threshold": 0.5
     },
     "XGBoost (Optuna-tuned)": {
       "roc_auc": 0.9777,

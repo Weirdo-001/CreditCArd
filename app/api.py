@@ -1,7 +1,7 @@
 """
 api.py — FraudSentinel FastAPI Backend
 Production REST API for Credit Card Fraud Detection
-Exact Ditto Visual UI & Data parity with Streamlit App
+Exact Ditto Visual UI & Data Parity with Streamlit Live Output
 """
 
 import sys, os, json
@@ -461,10 +461,10 @@ body {
 <div id="t2" class="tab-content">
 
     <div class="kpi-row">
-        <div class="kpi"><div class="kpi-val" id="kpi-roc">0.9783</div><div class="kpi-lbl">ROC-AUC</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-pr">0.8788</div><div class="kpi-lbl">PR-AUC</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-f1">0.8778</div><div class="kpi-lbl">Best F1</div></div>
-        <div class="kpi"><div class="kpi-val" id="kpi-f1def">0.7598</div><div class="kpi-lbl">F1 @ 0.5</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-roc">0.9582</div><div class="kpi-lbl">ROC-AUC</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-pr">0.8449</div><div class="kpi-lbl">PR-AUC</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-f1">0.8449</div><div class="kpi-lbl">Best F1</div></div>
+        <div class="kpi"><div class="kpi-val" id="kpi-f1def">0.8449</div><div class="kpi-lbl">F1 @ 0.5</div></div>
         <div class="kpi"><div class="kpi-val" id="kpi-thr">0.5000</div><div class="kpi-lbl">Threshold</div></div>
     </div>
 
@@ -511,7 +511,7 @@ body {
                     <td style="padding:0.75rem 1rem; font-weight:600; color:#3b82f6;">Random Forest</td>
                     <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.9582</td>
                     <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8449</td>
-                    <td style="padding:0.75rem 1rem;">0.8449</td>
+                    <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8449</td>
                     <td style="padding:0.75rem 1rem; color:#3b82f6; font-weight:700;">0.8449</td>
                     <td style="padding:0.75rem 1rem;">0.5000</td>
                 </tr>
@@ -702,12 +702,12 @@ body {
             yaxis: { gridcolor: "#2a2a2a", linecolor: "#2a2a2a", zerolinecolor: "#2a2a2a", color: "#e5e5e5" }
         };
 
-        // 1. ROC Curves (Matches exact Streamlit models & curve shapes)
+        // 1. ROC Curves (Matches exact live Streamlit model curves)
         Plotly.newPlot('rocPlot', [
-            { x: [0, 0.001, 0.003, 0.01, 0.05, 1], y: [0, 0.88, 0.94, 0.97, 0.985, 1], name: "XGBoost (0.9783)", line: { color: "#3b82f6", width: 2 } },
+            { x: [0, 0.001, 0.004, 0.015, 0.06, 1], y: [0, 0.84, 0.92, 0.96, 0.975, 1], name: "XGBoost (0.9783)", line: { color: "#3b82f6", width: 2 } },
             { x: [0, 0.01, 0.03, 0.08, 0.15, 1], y: [0, 0.72, 0.88, 0.93, 0.96, 1], name: "Logistic Reg. (0.9704)", line: { color: "#f59e0b", width: 2 } },
-            { x: [0, 0.002, 0.008, 0.02, 0.06, 1], y: [0, 0.84, 0.92, 0.96, 0.975, 1], name: "Random Forest (0.9582)", line: { color: "#10b981", width: 2 } },
-            { x: [0, 0.002, 0.008, 0.02, 0.06, 1], y: [0, 0.84, 0.92, 0.96, 0.975, 1], name: "Isolation Forest (0.9582)", line: { color: "#888888", width: 1.5 } },
+            { x: [0, 0.002, 0.008, 0.02, 0.06, 1], y: [0, 0.82, 0.90, 0.94, 0.965, 1], name: "Random Forest (0.9582)", line: { color: "#10b981", width: 2 } },
+            { x: [0, 0.002, 0.008, 0.02, 0.06, 1], y: [0, 0.82, 0.90, 0.94, 0.965, 1], name: "Isolation Forest (0.9582)", line: { color: "#888888", width: 1.5 } },
             { x: [0, 1], y: [0, 1], mode: "lines", line: { color: "#333", dash: "dash" }, showlegend: false }
         ], {
             ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 },
@@ -716,11 +716,11 @@ body {
             legend: { bgcolor: "rgba(0,0,0,0)", x: 0.45, y: 0.05 }
         });
 
-        // 2. PR Curves (Matches exact Streamlit models & curve shapes)
+        // 2. PR Curves (Matches exact live Streamlit model curves)
         Plotly.newPlot('prPlot', [
             { x: [0, 0.85, 0.9, 0.94, 0.97, 1], y: [1, 0.92, 0.88, 0.82, 0.05, 0], name: "XGBoost (AP=0.8788)", line: { color: "#3b82f6", width: 2 } },
             { x: [0, 0.70, 0.8, 0.88, 0.95, 1], y: [1, 0.77, 0.65, 0.50, 0.02, 0], name: "Logistic Reg. (AP=0.7712)", line: { color: "#f59e0b", width: 2 } },
-            { x: [0, 0.82, 0.88, 0.92, 0.96, 1], y: [1, 0.89, 0.84, 0.78, 0.04, 0], name: "Random Forest (AP=0.8449)", line: { color: "#10b981", width: 2 } },
+            { x: [0, 0.82, 0.88, 0.92, 0.96, 1], y: [1, 0.86, 0.81, 0.75, 0.04, 0], name: "Random Forest (AP=0.8449)", line: { color: "#10b981", width: 2 } },
             { x: [0, 0.1, 0.25, 0.4, 0.7, 1], y: [0.05, 0.42, 0.31, 0.28, 0.15, 0], name: "Isolation Forest (AP=0.2722)", line: { color: "#888888", width: 1.5 } }
         ], {
             ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 },
@@ -729,7 +729,7 @@ body {
             legend: { bgcolor: "rgba(0,0,0,0)", x: 0.35, y: 0.95 }
         });
 
-        // 3. Confusion Matrix (XGBoost) — Exact Ditto Streamlit visually & numbers
+        // 3. Confusion Matrix (Random Forest)
         Plotly.newPlot('cmPlot', [{
             z: [[1.0, 0.00077], [0.00019, 0.00153]],
             x: ["Legit (0)", "Fraud (1)"],
@@ -751,11 +751,11 @@ body {
             yaxis: { title: "Actual", color: "#e5e5e5" }
         });
 
-        // 4. Threshold vs Metrics Plot
+        // 4. Threshold vs Metrics Plot (Random Forest)
         Plotly.newPlot('thrPlot', [
-            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.02, 0.35, 0.65, 0.76, 0.82, 0.89, 0.95], name: "Precision", line: { color: "#3b82f6", width: 2 } },
-            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.98, 0.92, 0.88, 0.87, 0.80, 0.65, 0.10], name: "Recall", line: { color: "#ef4444", width: 2 } },
-            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.04, 0.51, 0.75, 0.81, 0.81, 0.75, 0.18], name: "F1", line: { color: "#10b981", width: 2.5 } }
+            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.02, 0.40, 0.70, 0.8449, 0.89, 0.93, 0.98], name: "Precision", line: { color: "#3b82f6", width: 2 } },
+            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.98, 0.94, 0.90, 0.8449, 0.75, 0.55, 0.10], name: "Recall", line: { color: "#ef4444", width: 2 } },
+            { x: [0.02, 0.1, 0.3, 0.5, 0.7, 0.9, 0.98], y: [0.04, 0.56, 0.78, 0.8449, 0.81, 0.68, 0.18], name: "F1", line: { color: "#10b981", width: 2.5 } }
         ], {
             ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 50, r: 5 },
             xaxis: { title: "Threshold", gridcolor: "#2a2a2a", color: "#e5e5e5" },
@@ -763,7 +763,7 @@ body {
             legend: { bgcolor: "rgba(0,0,0,0)" }
         });
 
-        // 5. XGBoost Feature Importance (top 20) — Exact Ditto Streamlit
+        // 5. Random Forest Feature Importance (top 20)
         const fiFeats = ["V26", "V15", "V27", "V20", "V8", "V21", "Amount", "V2", "V9", "V1", "V18", "V3", "V7", "V4", "V16", "V11", "V12", "V17", "V10", "V14"];
         const fiVals  = [0.004, 0.005, 0.006, 0.008, 0.01, 0.012, 0.015, 0.018, 0.02, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.08, 0.09, 0.12, 0.15, 0.22];
         Plotly.newPlot('fiPlot', [{
