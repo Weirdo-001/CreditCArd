@@ -428,15 +428,15 @@ with tab2:
     y_test, y_xgb, y_lr, y_rf, y_if, cfg = data
     threshold = cfg["best_threshold"]
     metrics   = cfg.get("metrics", {})
-    xgb_m     = metrics.get("XGBoost (Optuna-tuned)", {})
+    rf_m      = metrics.get("Random Forest", metrics.get("Random Forest Baseline", {}))
 
     # ── KPI row ───────────────────────────────────────────────────────────────
     k1,k2,k3,k4,k5 = st.columns(5)
     for col, val, lbl in [
-        (k1, xgb_m.get("roc_auc","—"), "ROC-AUC"),
-        (k2, xgb_m.get("pr_auc","—"),  "PR-AUC"),
-        (k3, xgb_m.get("f1_best","—"), "Best F1"),
-        (k4, xgb_m.get("f1_default","—"), "F1 @ 0.5"),
+        (k1, rf_m.get("roc_auc","—"), "ROC-AUC"),
+        (k2, rf_m.get("pr_auc","—"),  "PR-AUC"),
+        (k3, rf_m.get("f1_best","—"), "Best F1"),
+        (k4, rf_m.get("f1_default","—"), "F1 @ 0.5"),
         (k5, f"{threshold:.4f}",        "Threshold"),
     ]:
         col.markdown(f"""
@@ -449,8 +449,7 @@ with tab2:
 
     # ── ROC + PR ──────────────────────────────────────────────────────────────
     d1, d2 = st.columns(2)
-    mp = [("XGBoost", y_xgb), ("Logistic Reg.", y_lr),
-          ("Random Forest", y_rf), ("Isolation Forest", y_if)]
+    mp = [("Random Forest", y_rf), ("XGBoost", y_xgb), ("Logistic Reg.", y_lr), ("Isolation Forest", y_if)]
 
     with d1:
         st.markdown('<div class="sec">ROC Curves</div>', unsafe_allow_html=True)
@@ -486,16 +485,13 @@ with tab2:
     # ── Confusion Matrix + Threshold curve ───────────────────────────────────
     d3, d4 = st.columns(2)
     with d3:
-        st.markdown('<div class="sec">Confusion Matrix (XGBoost)</div>',
+        st.markdown('<div class="sec">Confusion Matrix (Random Forest)</div>',
                     unsafe_allow_html=True)
-        y_pred = (y_xgb >= threshold).astype(int)
+        y_pred = (y_rf >= threshold).astype(int)
         cm = confusion_matrix(y_test, y_pred)
         labels = ["Legit (0)", "Fraud (1)"]
 
-        # Fix: compute per-cell text color based on relative brightness
-        # Use dark-to-blue scale capped so white text always readable
-        cm_norm = cm / cm.max()   # normalise for color only
-        # Force white text via textfont — works on dark blues
+        cm_norm = cm / cm.max()
         fig3 = go.Figure(go.Heatmap(
             z=cm_norm,
             x=labels, y=labels,
@@ -519,7 +515,7 @@ with tab2:
     with d4:
         st.markdown('<div class="sec">Precision / Recall / F1 vs Threshold</div>',
                     unsafe_allow_html=True)
-        prec, rec, thrs = precision_recall_curve(y_test, y_xgb)
+        prec, rec, thrs = precision_recall_curve(y_test, y_rf)
         f1s = 2*prec[:-1]*rec[:-1] / (prec[:-1]+rec[:-1]+1e-9)
         fig4 = go.Figure()
         fig4.add_trace(go.Scatter(x=thrs, y=prec[:-1], mode="lines",
@@ -538,7 +534,7 @@ with tab2:
         st.plotly_chart(fig4, use_container_width=True)
 
     # ── Feature Importance ────────────────────────────────────────────────────
-    st.markdown('<div class="sec">XGBoost Feature Importance (top 20)</div>',
+    st.markdown('<div class="sec">Random Forest Feature Importance (top 20)</div>',
                 unsafe_allow_html=True)
     try:
         pipe = joblib.load(os.path.join(MODELS_DIR, "model.pkl"))
