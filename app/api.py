@@ -672,32 +672,45 @@ body {
                 { x: [1, 0.7, 0.5, 0.3, 0], y: [0.01, 0.5, 0.6, 0.7, 1], name: "Logistic Reg. (AP=0.7120)", line: { color: "#f59e0b", width: 2 } }
             ], { ...darkLayout, height: 360, margin: { t: 5, b: 40, l: 50, r: 5 } });
 
-            // Sample Heatmap Confusion Matrix
+            // Heatmap Confusion Matrix (Fixed visible contrast + 2x2 cell colors)
             Plotly.newPlot('cmPlot', [{
-                z: [[56850, 14], [16, 82]],
-                x: ["Legit (0)", "Fraud (1)"], y: ["Legit (0)", "Fraud (1)"],
+                z: [[0.25, 0.85], [0.95, 0.25]],
+                x: ["Predicted Legit", "Predicted Fraud"],
+                y: ["Actual Fraud", "Actual Legit"],
                 type: "heatmap",
-                colorscale: [[0, "#141414"], [0.3, "#0c2340"], [0.7, "#1a4a7a"], [1, "#2563eb"]],
+                colorscale: [
+                    [0.0, "#1e293b"],
+                    [0.4, "#1e3a8a"],
+                    [0.7, "#1d4ed8"],
+                    [1.0, "#3b82f6"]
+                ],
                 showscale: false,
-                text: [["56,850", "14"], ["16", "82"]],
-                texttemplate: "%{text}",
-                textfont: { size: 20, color: "#ffffff" }
-            }], { ...darkLayout, height: 300, margin: { t: 5, b: 40, l: 80, r: 5 } });
+                text: [["16 (FN)", "82 (TP)"], ["56,850 (TN)", "14 (FP)"]],
+                texttemplate: "<b>%{text}</b>",
+                textfont: { size: 17, color: "#ffffff" }
+            }], { ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 110, r: 20 } });
 
             // Threshold vs Metrics Plot
             Plotly.newPlot('thrPlot', [
                 { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.4, 0.75, 0.88, 0.92, 0.96], name: "Precision", line: { color: "#3b82f6", width: 2 } },
                 { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.95, 0.88, 0.84, 0.72, 0.50], name: "Recall", line: { color: "#ef4444", width: 2 } },
                 { x: [0.1, 0.3, 0.5, 0.7, 0.9], y: [0.56, 0.81, 0.86, 0.81, 0.66], name: "F1", line: { color: "#10b981", width: 2.5 } }
-            ], { ...darkLayout, height: 300, margin: { t: 5, b: 40, l: 50, r: 5 } });
+            ], { ...darkLayout, height: 300, margin: { t: 15, b: 40, l: 50, r: 20 } });
 
-            // Feature Importance Bar
-            const fiFeats = ["V17", "V14", "V12", "V10", "V16", "V11", "V4", "V7", "V3", "V18", "V1", "V9", "V2", "Amount", "V21", "V8", "V20", "V27", "V15", "V26"];
-            const fiVals = [0.18, 0.15, 0.12, 0.09, 0.08, 0.06, 0.05, 0.04, 0.035, 0.03, 0.025, 0.02, 0.018, 0.015, 0.012, 0.01, 0.008, 0.006, 0.005, 0.004].reverse();
+            // Feature Importance Horizontal Bar (Fixed rendering)
+            const fiFeats = ["V26", "V15", "V27", "V20", "V8", "V21", "Amount", "V2", "V9", "V1", "V18", "V3", "V7", "V4", "V11", "V16", "V10", "V12", "V14", "V17"];
+            const fiVals  = [0.004, 0.005, 0.006, 0.008, 0.01, 0.012, 0.015, 0.018, 0.02, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.08, 0.09, 0.12, 0.15, 0.18];
             Plotly.newPlot('fiPlot', [{
-                x: fiVals, y: fiFeats.reverse(), type: "bar", orientation: "h",
-                marker: { color: fiVals, colorscale: [[0, "#1a2a3a"], [1, "#3b82f6"]], showscale: false }
-            }], { ...darkLayout, height: 450, margin: { t: 5, b: 40, l: 80, r: 5 } });
+                x: fiVals,
+                y: fiFeats,
+                type: "bar",
+                orientation: "h",
+                marker: { color: "#3b82f6", line: { color: "#1d4ed8", width: 1 } },
+                text: fiVals.map(v => v.toFixed(3)),
+                textposition: "outside",
+                textfont: { color: "#e5e5e5", size: 11 }
+            }], { ...darkLayout, height: 480, margin: { t: 15, b: 40, l: 80, r: 60 } });
+
 
         } catch(e) { console.error(e); }
     }
