@@ -678,7 +678,7 @@ body {
             textfont: { color: "#e5e5e5" }
         }];
         Plotly.newPlot('shapBarPlot', barData, {
-            height: 180, margin: { t: 5, b: 25, l: 5, r: 70 },
+            height: 180, margin: { t: 5, b: 25, l: 50, r: 70 },
             paper_bgcolor: "#0a0a0a", plot_bgcolor: "#141414",
             font: { color: "#e5e5e5", family: "Inter" },
             xaxis: { title: "SHAP (impact on fraud score)", gridcolor: "#2a2a2a", zerolinecolor: "#444", color: "#e5e5e5" },

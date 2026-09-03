@@ -236,7 +236,7 @@ def shap_bar(top3):
         hovertemplate="<b>%{y}</b><br>SHAP: %{x:.4f}<extra></extra>",
     ))
     fig.update_layout(
-        height=180, margin=dict(t=5, b=5, l=5, r=70),
+        height=180, margin=dict(t=5, b=25, l=50, r=70),
         xaxis_title="SHAP (impact on fraud score)",
         xaxis=dict(gridcolor="#2a2a2a", zerolinecolor="#444",
                    zerolinewidth=1.5, color="#e5e5e5"),
