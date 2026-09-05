@@ -631,6 +631,8 @@ body {
         </table>
 </div>
 
+    </div>
+
 <!-- ════════════════════ TAB 3: LIVE STREAM & GOVERNANCE AUDIT ════════════════════ -->
 <div id="t3" class="tab-content">
 
