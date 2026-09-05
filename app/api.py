@@ -482,6 +482,10 @@ body {
                 <label>Amount (USD)</label>
                 <input type="number" id="Amount" value="50.00" step="any">
             </div>
+            <div class="field-group">
+                <label>Card / Entity ID</label>
+                <input type="text" id="card_id" value="CARD-8921">
+            </div>
         </div>
 
         <div class="sec" style="margin-top:.8rem">
@@ -525,6 +529,10 @@ body {
 
         <div class="sec" style="margin-top:1.5rem">SHAP Feature Impact</div>
         <div id="shapBarPlot"></div>
+
+        <div id="evidencePanel" class="st-form hidden" style="margin-top:1rem;"></div>
+        <div class="sec" style="margin-top:1.5rem">Raw Feature Values Used</div>
+        <div id="rawFeatures" class="st-form" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem;"></div>
     </div>
 
 </div>
@@ -538,6 +546,14 @@ body {
         <div class="kpi"><div class="kpi-val" id="kpi-f1">0.8542</div><div class="kpi-lbl">Best F1</div></div>
         <div class="kpi"><div class="kpi-val" id="kpi-f1def">0.8155</div><div class="kpi-lbl">F1 @ 0.5</div></div>
         <div class="kpi"><div class="kpi-val" id="kpi-thr">0.6554</div><div class="kpi-lbl">Best Threshold</div></div>
+    </div>
+
+    <div class="sec">💰 Business & Financial Impact Model (Test Set ROI)</div>
+    <div class="kpi-row" style="margin-top:.6rem;">
+        <div class="kpi"><div class="kpi-val" style="color:#10b981;">$10,250</div><div class="kpi-lbl">Fraud Prevented (82 TPs)</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:#f59e0b;">$180</div><div class="kpi-lbl">False Decline Friction (12 FPs)</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:#ef4444;">$2,400</div><div class="kpi-lbl">Residual Risk Loss (16 FNs)</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:#3b82f6;">$10,070</div><div class="kpi-lbl">Net Financial Value Saved</div></div>
     </div>
 
     <div class="charts-row-2">
@@ -625,6 +641,9 @@ body {
         </div>
         <div style="display:flex; gap:0.8rem; align-items:center;">
             <div id="streamStatusBadge" style="font-size:0.85rem;"><span style="color:#888;">○ Stream Paused</span></div>
+            <label style="color:#aaa;font-size:.8rem;">Transactions
+                <input id="streamCount" type="number" min="1" max="50" value="15" style="width:4.5rem;margin-left:.3rem;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:6px;padding:.45rem;">
+            </label>
             <button id="streamStatusBtn" class="submit-btn" style="padding:0.5rem 1.2rem; font-size:0.85rem;" onclick="toggleStream()">▶️ Start Streaming Live Feed</button>
             <button class="st-btn" style="padding:0.5rem 1rem;" onclick="streamTick()">🎲 Stream 1 Event</button>
         </div>
@@ -701,7 +720,16 @@ body {
         document.getElementById('streamStatusBtn').innerHTML = "⏸️ Pause Stream";
         document.getElementById('streamStatusBadge').innerHTML = "<span style='color:#10b981;font-weight:600;'>● STREAMING LIVE</span>";
         streamTick();
-        streamInterval = setInterval(streamTick, 850);
+        const count = Math.max(1, Math.min(50, parseInt(document.getElementById('streamCount').value || '15', 10)));
+        let emitted = 1;
+        streamInterval = setInterval(() => {
+            if (emitted >= count) {
+                pauseStream();
+                return;
+            }
+            emitted += 1;
+            streamTick();
+        }, 850);
     }
 
     function pauseStream() {
@@ -818,7 +846,8 @@ body {
         e.preventDefault();
         const payload = {
             Time: parseFloat(document.getElementById('Time').value),
-            Amount: parseFloat(document.getElementById('Amount').value)
+            Amount: parseFloat(document.getElementById('Amount').value),
+            card_id: document.getElementById('card_id').value.trim() || null
         };
         for (let i = 1; i <= 28; i++) payload[`V${i}`] = parseFloat(document.getElementById(`V${i}`).value || 0);
 
@@ -874,6 +903,41 @@ body {
               <p class="verdict-sub">Score: <b style="color:#10b981">${(data.probability * 100).toFixed(2)}%</b></p>
             </div>`;
         }
+
+        const actionColors = {
+            AUTO_BLOCK: "#ef4444",
+            MANUAL_REVIEW: "#f59e0b",
+            SUPERVISOR_OVERRIDE_REQUIRED: "#a855f7",
+            AUTO_CLEAR: "#10b981"
+        };
+        const actionColor = actionColors[data.action] || color;
+        const actionLabel = data.action === 'AUTO_BLOCK' ? '⛔ AUTO BLOCK' :
+            data.action === 'MANUAL_REVIEW' ? '⚠️ MANUAL REVIEW' :
+            data.action === 'SUPERVISOR_OVERRIDE_REQUIRED' ? '🛡️ GOVERNANCE OVERRIDE' : '✅ AUTO CLEAR';
+        const verdictSub = `<p class="verdict-sub">${actionLabel}</p><p class="verdict-sub">Queue: <b>${data.queue}</b> | Risk: <b>${data.risk_level}</b></p>`;
+        const verdictBox = document.getElementById('verdictBox').firstElementChild;
+        if (verdictBox) {
+            verdictBox.style.borderColor = actionColor;
+            verdictBox.querySelector('.verdict-sub').insertAdjacentHTML('afterend', verdictSub);
+        }
+
+        const evidencePanel = document.getElementById('evidencePanel');
+        const evidence = data.dispute_evidence;
+        if (evidence) {
+            evidencePanel.classList.remove('hidden');
+            evidencePanel.innerHTML = `<h3 style="color:#60a5fa;margin-bottom:.5rem;">📝 Auto-Drafted Dispute Evidence Packet (${evidence.evidence_id})</h3>
+                <p>${evidence.summary}</p><p class="st-caption" style="margin:.5rem 0 0;">
+                <b>Triggered Anomaly Features:</b> ${(evidence.key_anomalies || []).join(', ') || 'None'}<br>
+                <b>Status:</b> ${evidence.status}</p>`;
+        } else {
+            evidencePanel.classList.add('hidden');
+            evidencePanel.innerHTML = '';
+        }
+
+        const rawValues = { Time: payload.Time, ...Object.fromEntries(Array.from({length: 28}, (_, index) => [`V${index + 1}`, payload[`V${index + 1}`]])), Amount: payload.Amount };
+        document.getElementById('rawFeatures').innerHTML = Object.entries(rawValues)
+            .map(([key, value]) => `<span style="color:#aaa;font-size:.8rem;"><b style="color:#e5e5e5">${key}</b>: ${Number(value).toFixed(4)}</span>`)
+            .join('');
 
         // Top SHAP Reasons Cards
         let cardsHtml = '';
