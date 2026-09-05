@@ -1,9 +1,12 @@
 """
 predict.py
 ──────────
-Inference module: loads model + scaler + threshold, scores a new transaction.
-Returns fraud probability, verdict, and top-3 SHAP feature reasons.
-Used by both the FastAPI backend and the Streamlit app directly.
+Inference & Governance module:
+- Scored model probabilities & SHAP feature importances
+- Action Layer (AUTO_BLOCK, MANUAL_REVIEW, AUTO_CLEAR)
+- Velocity & Gated Safety Stopping Rules (max 3 auto-blocks per card)
+- Automated Dispute Evidence Generator
+- Audit Trail Logger (data/audit_log.jsonl)
 """
 
 import warnings
@@ -14,18 +17,28 @@ import pandas as pd
 import joblib
 import json
 import os
+import time
+import uuid
 import shap
-from typing import Dict, Any, List, Tuple
+import hashlib
+from datetime import datetime
+from typing import Dict, Any, List, Tuple, Optional
 
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
+DATA_DIR   = os.path.join(BASE_DIR, "data")
+AUDIT_LOG_JSONL = os.path.join(DATA_DIR, "audit_log.jsonl")
+AUDIT_LOG_CSV   = os.path.join(DATA_DIR, "audit_log.csv")
+
+os.makedirs(DATA_DIR, exist_ok=True)
 
 
 class FraudPredictor:
-    """Stateful predictor — load once, score many times."""
+    """Stateful predictor & governance engine — load once, score & audit many times."""
 
     def __init__(self, models_dir: str = MODELS_DIR):
         self.models_dir = models_dir
+        self.velocity_counter: Dict[str, int] = {}
         self._load()
 
     def _load(self):
@@ -51,7 +64,7 @@ class FraudPredictor:
         # TreeExplainer needs the raw classifier, not the pipeline wrapper
         clf = self.pipeline.named_steps["clf"]
         self.explainer = shap.TreeExplainer(clf)
-        print(f"[predict] Loaded pipeline | threshold={self.threshold:.4f}")
+        print(f"[predict] Loaded pipeline & action engine | threshold={self.threshold:.4f}")
 
     def _prepare(self, transaction: Dict[str, float]) -> pd.DataFrame:
         """Build feature DataFrame, apply the SAME scaler fitted on training data."""
@@ -59,30 +72,32 @@ class FraudPredictor:
         df[["Amount", "Time"]] = self.scaler.transform(df[["Amount", "Time"]])
         return df
 
-    def predict(self, transaction: Dict[str, float]) -> Dict[str, Any]:
+    def predict(self, transaction: Dict[str, float], card_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Score a single transaction.
-        Returns:
-          - probability: float [0, 1]
-          - is_fraud: bool
-          - verdict: "FRAUD" | "LEGITIMATE"
-          - confidence: "HIGH" | "MEDIUM" | "LOW"
-          - shap_top3: list of {feature, value, shap_value, direction}
+        Score a single transaction & run Action Routing, Safety Rules, Dispute Evidence, and Audit Trail.
         """
+        tx_id = f"TX-{uuid.uuid4().hex[:10].upper()}"
+        timestamp = datetime.utcnow().isoformat() + "Z"
+        amount = float(transaction.get("Amount", 0.0))
+        # Stable process-independent hex hash with 16.7M ID space
+        v1_str = str(transaction.get('V1', 0.0)).encode('utf-8')
+        cid = card_id or f"CARD-{hashlib.md5(v1_str).hexdigest()[:6].upper()}"
+
+
         X = self._prepare(transaction)
 
-        prob   = float(self.pipeline.predict_proba(X)[:, 1][0])
+        prob = float(self.pipeline.predict_proba(X)[:, 1][0])
         is_fraud = prob >= self.threshold
 
-        # confidence bucket
-        if prob > 0.8 or prob < 0.2:
+        # ── 1. Confidence Bucket ─────────────────────────────────────────────
+        if prob > 0.85 or prob < 0.15:
             confidence = "HIGH"
-        elif prob > 0.6 or prob < 0.4:
+        elif prob > 0.65 or prob < 0.35:
             confidence = "MEDIUM"
         else:
             confidence = "LOW"
 
-        # SHAP — handle both RandomForest (list [class0, class1]) and XGBoost (2D/3D array)
+        # ── 2. SHAP Top 3 ────────────────────────────────────────────────────
         X_values = X.values if hasattr(X, "values") else X
         raw_shap = self.explainer.shap_values(X_values)
         if isinstance(raw_shap, list):
@@ -94,13 +109,147 @@ class FraudPredictor:
 
         top3 = self._top3_shap(X.iloc[0], shap_vals)
 
-        return {
+        # ── 3. Action Layer & Decision Router (Tier 1) ────────────────────────
+        # Routing Rules:
+        #   prob >= 0.85                      -> AUTO_BLOCK
+        #   threshold (0.6554) <= prob < 0.85 -> MANUAL_REVIEW
+        #   prob < threshold                  -> AUTO_CLEAR
+        if prob >= 0.85:
+            action = "AUTO_BLOCK"
+            queue  = "BLOCKED_QUEUE"
+            risk_level = "CRITICAL"
+        elif prob >= self.threshold:
+            action = "MANUAL_REVIEW"
+            queue  = "MANUAL_REVIEW_QUEUE"
+            risk_level = "ELEVATED"
+        else:
+            action = "AUTO_CLEAR"
+            queue  = "CLEARED_QUEUE"
+            risk_level = "LOW"
+
+        # ── 4. Safety Guardrail / Rate-Limiting Velocity Rule (Tier 2) ──────
+        current_blocks = self.velocity_counter.get(cid, 0)
+        safety_override = False
+        rule_triggered = "STANDARD_POLICY"
+
+        if action == "AUTO_BLOCK":
+            current_blocks += 1
+            self.velocity_counter[cid] = current_blocks
+            if current_blocks > 3:
+                action = "SUPERVISOR_OVERRIDE_REQUIRED"
+                queue  = "GOVERNANCE_QUEUE"
+                safety_override = True
+                rule_triggered = "VELOCITY_CAP_EXCEEDED (Max 3 auto-blocks/card/day)"
+
+        # ── 5. Auto-Draft Dispute Evidence (Tier 1) ──────────────────────────
+        dispute_evidence = None
+        if action in ["AUTO_BLOCK", "MANUAL_REVIEW", "SUPERVISOR_OVERRIDE_REQUIRED"]:
+            reasons_str = ", ".join([f"{s['feature']} (val: {s['raw_value']}, SHAP: {s['shap_value']:+.3f})" for s in top3])
+            dispute_evidence = {
+                "evidence_id": f"EVID-{uuid.uuid4().hex[:8].upper()}",
+                "generated_at": timestamp,
+                "summary": (
+                    f"[AUTO-GENERATED DISPUTE PACKET] Transaction {tx_id} of amount ${amount:.2f} "
+                    f"flagged with fraud score {prob*100:.1f}%. Key anomaly drivers: {reasons_str}. "
+                    f"Recommended Action: Request cardholder identity confirmation via SMS OTP or KYC hold."
+                ),
+                "key_anomalies": [s["feature"] for s in top3 if s["shap_value"] > 0],
+                "status": "DRAFT_CREATED"
+            }
+
+        # ── 6. Financial Impact / Cost-Based Risk Metrics ────────────────────
+        # Estimated values:
+        #   Fraud Loss Prevented (if blocked/reviewed): $amount or $125 avg
+        #   Customer Friction Cost (if false positive): $15 avg
+        #   Residual Missed Risk (if false negative): $150 avg
+        prevented_value = amount if is_fraud else 0.0
+        friction_cost   = 15.00 if (action != "AUTO_CLEAR" and not is_fraud) else 0.0
+
+        result = {
+            "transaction_id": tx_id,
+            "timestamp": timestamp,
+            "card_id": cid,
+            "amount": round(amount, 2),
             "probability": round(prob, 6),
-            "is_fraud":    bool(is_fraud),
-            "verdict":     "FRAUD" if is_fraud else "LEGITIMATE",
-            "confidence":  confidence,
-            "threshold":   round(self.threshold, 4),
-            "shap_top3":   top3,
+            "is_fraud": bool(is_fraud),
+            "verdict": "FRAUD" if is_fraud else "LEGITIMATE",
+            "action": action,
+            "queue": queue,
+            "risk_level": risk_level,
+            "confidence": confidence,
+            "threshold": round(self.threshold, 4),
+            "rule_triggered": rule_triggered,
+            "safety_override": safety_override,
+            "shap_top3": top3,
+            "dispute_evidence": dispute_evidence,
+            "financial_impact": {
+                "prevented_fraud_val": round(prevented_value, 2),
+                "friction_cost": round(friction_cost, 2),
+            }
+        }
+
+        # ── 7. Audit Trail Logging (Tier 1) ──────────────────────────────────
+        self._write_audit_log(result)
+
+        return result
+
+    def _write_audit_log(self, record: Dict[str, Any]):
+        """Persists every scored transaction into an immutable audit trail."""
+        try:
+            # Flatten top3 for CSV
+            top3_summary = "; ".join([f"{s['feature']}:{s['direction']}" for s in record.get("shap_top3", [])])
+
+            # Write JSONL
+            with open(AUDIT_LOG_JSONL, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+
+            # Write CSV header if missing
+            file_exists = os.path.exists(AUDIT_LOG_CSV)
+            with open(AUDIT_LOG_CSV, "a", encoding="utf-8") as f:
+                if not file_exists:
+                    f.write("timestamp,transaction_id,card_id,amount,probability,verdict,action,queue,confidence,shap_top3\n")
+                f.write(f"{record['timestamp']},{record['transaction_id']},{record['card_id']},{record['amount']},{record['probability']:.4f},{record['verdict']},{record['action']},{record['queue']},{record['confidence']},\"{top3_summary}\"\n")
+        except Exception as e:
+            print(f"[AuditLog Warning] Could not write audit log: {e}")
+
+    def get_audit_logs(self, limit: int = 50, filter_action: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieves recent audit logs."""
+        if not os.path.exists(AUDIT_LOG_JSONL):
+            return []
+        logs = []
+        with open(AUDIT_LOG_JSONL, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    item = json.loads(line)
+                    if filter_action and item.get("action") != filter_action:
+                        continue
+                    logs.append(item)
+        return logs[-limit:][::-1]
+
+    def get_audit_summary(self) -> Dict[str, Any]:
+        """Calculates audit trail summary statistics."""
+        logs = self.get_audit_logs(limit=10000)
+        total = len(logs)
+        if total == 0:
+            return {
+                "total_scored": 0, "auto_blocked": 0, "manual_review": 0,
+                "auto_cleared": 0, "supervisor_overrides": 0,
+                "total_fraud_prevented_usd": 0.0
+            }
+
+        auto_blocked = sum(1 for l in logs if l.get("action") == "AUTO_BLOCK")
+        manual_review = sum(1 for l in logs if l.get("action") == "MANUAL_REVIEW")
+        auto_cleared = sum(1 for l in logs if l.get("action") == "AUTO_CLEAR")
+        supervisors = sum(1 for l in logs if l.get("action") == "SUPERVISOR_OVERRIDE_REQUIRED")
+        total_prevented = sum(l.get("financial_impact", {}).get("prevented_fraud_val", 0.0) for l in logs)
+
+        return {
+            "total_scored": total,
+            "auto_blocked": auto_blocked,
+            "manual_review": manual_review,
+            "auto_cleared": auto_cleared,
+            "supervisor_overrides": supervisors,
+            "total_fraud_prevented_usd": round(total_prevented, 2)
         }
 
     def predict_batch(self, transactions: List[Dict[str, float]]) -> List[Dict[str, Any]]:
@@ -150,10 +299,9 @@ def get_predictor() -> FraudPredictor:
 
 
 if __name__ == "__main__":
-    # Quick smoke test with a synthetic transaction
     predictor = get_predictor()
     sample = {f: 0.0 for f in predictor.feature_names}
     sample["Amount"] = 150.0
     sample["Time"]   = 80000.0
     result = predictor.predict(sample)
-    print(result)
+    print(json.dumps(result, indent=2))

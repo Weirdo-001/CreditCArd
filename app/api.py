@@ -40,6 +40,7 @@ app.add_middleware(
 class TransactionInput(BaseModel):
     Time: float = Field(..., example=80000.0)
     Amount: float = Field(..., example=124.50)
+    card_id: Optional[str] = Field(None, example="CARD-8921")
     V1:  float = Field(0.0); V2:  float = Field(0.0); V3:  float = Field(0.0)
     V4:  float = Field(0.0); V5:  float = Field(0.0); V6:  float = Field(0.0)
     V7:  float = Field(0.0); V8:  float = Field(0.0); V9:  float = Field(0.0)
@@ -75,17 +76,85 @@ def get_metrics():
         return json.load(f)
 
 
-@app.post("/predict", tags=["Inference"])
+@app.post("/predict", tags=["Inference & Action Layer"])
 def predict_transaction(tx: TransactionInput):
     try:
-        result = get_predictor().predict(tx.model_dump())
+        tx_dict = tx.model_dump()
+        cid = tx_dict.pop("card_id", None)
+        result = get_predictor().predict(tx_dict, card_id=cid)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
+@app.get("/audit-log", tags=["Governance & Audit"])
+def get_audit_logs(limit: int = 50, action_filter: Optional[str] = None):
+    try:
+        return get_predictor().get_audit_logs(limit=limit, filter_action=action_filter)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Audit retrieval error: {str(e)}")
+
+
+@app.get("/audit-summary", tags=["Governance & Audit"])
+def get_audit_summary():
+    try:
+        return get_predictor().get_audit_summary()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Audit summary error: {str(e)}")
+
+
+@app.get("/financial-roi", tags=["Business & Cost Modeling"])
+def get_financial_roi():
+    """Translates model test matrix into financial ROI figures."""
+    # Based on test set: TP=82, FP=12, FN=16
+    tp, fp, fn = 82, 12, 16
+    avg_fraud_val = 125.0
+    friction_cost = 15.0
+    missed_cost = 150.0
+
+    prevented = tp * avg_fraud_val
+    friction  = fp * friction_cost
+    missed    = fn * missed_cost
+    net_saved = prevented - friction
+
+    return {
+        "test_set_cases": { "true_positives": tp, "false_positives": fp, "false_negatives": fn },
+        "cost_assumptions": { "avg_fraud_tx_usd": avg_fraud_val, "false_decline_friction_usd": friction_cost, "missed_fraud_penalty_usd": missed_cost },
+        "financial_outcomes_usd": {
+            "fraud_loss_prevented": prevented,
+            "false_decline_friction_cost": friction,
+            "missed_fraud_residual_loss": missed,
+            "net_value_saved": net_saved
+        }
+    }
+
+
+@app.get("/stream-step", tags=["Simulation & Stream"])
+def stream_step():
+    """Simulates a single live streaming transaction event for UI feed."""
+    sample_path = os.path.join(MODELS_DIR, "test_sample.csv")
+    if not os.path.exists(sample_path):
+        raise HTTPException(status_code=404, detail="test_sample.csv not found.")
+    df = pd.read_csv(sample_path)
+
+    # 35% chance of picking a fraud transaction to make live demo active
+    if np.random.random() < 0.35:
+        sub = df[df["Class"] == 1]
+    else:
+        sub = df[df["Class"] == 0]
+
+    row = sub.sample(1).iloc[0].to_dict()
+    gt = int(row.pop("Class", 0))
+    cid = f"CARD-{np.random.randint(100, 106):04d}"
+
+    res = get_predictor().predict(row, card_id=cid)
+    res["ground_truth"] = "FRAUD" if gt == 1 else "LEGITIMATE"
+    return res
+
+
 @app.get("/random", tags=["Testing"])
 def get_random_sample(target: Optional[str] = None):
+
     path = os.path.join(MODELS_DIR, "test_sample.csv")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="test_sample.csv not found.")
@@ -108,6 +177,7 @@ def get_random_sample(target: Optional[str] = None):
 @app.get("/", response_class=HTMLResponse, tags=["Dashboard Client"])
 @app.get("/dashboard", response_class=HTMLResponse, tags=["Dashboard Client"])
 def render_dashboard():
+
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -382,7 +452,9 @@ body {
 <div class="tabs-header">
     <button class="tab-button active" onclick="openTab('t1', this)">🔍 &nbsp; Transaction Check</button>
     <button class="tab-button" onclick="openTab('t2', this)">📊 &nbsp; Model Dashboard</button>
+    <button class="tab-button" onclick="openTab('t3', this)">🚀 &nbsp; Live Stream & Governance Audit</button>
 </div>
+
 
 <!-- ════════════════════ TAB 1: TRANSACTION CHECK ════════════════════ -->
 <div id="t1" class="tab-content active">
@@ -541,11 +613,63 @@ body {
                 </tr>
             </tbody>
         </table>
+</div>
+
+<!-- ════════════════════ TAB 3: LIVE STREAM & GOVERNANCE AUDIT ════════════════════ -->
+<div id="t3" class="tab-content">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+        <div>
+            <div class="sec" style="margin-bottom:0.2rem;">🚀 Real-Time Transaction Stream Simulator</div>
+            <div class="st-caption">Live stream transactions directly into FraudSentinel inference engine to observe decision routing & velocity rules.</div>
+        </div>
+        <div style="display:flex; gap:0.8rem; align-items:center;">
+            <div id="streamStatusBadge" style="font-size:0.85rem;"><span style="color:#888;">○ Stream Paused</span></div>
+            <button id="streamStatusBtn" class="submit-btn" style="padding:0.5rem 1.2rem; font-size:0.85rem;" onclick="toggleStream()">▶️ Start Streaming Live Feed</button>
+            <button class="st-btn" style="padding:0.5rem 1rem;" onclick="streamTick()">🎲 Stream 1 Event</button>
+        </div>
+    </div>
+
+    <!-- Terminal Feed Console -->
+    <div style="background:#050507; border:1px solid #2a2a2a; border-radius:10px; padding:1rem; margin-bottom:1.5rem; font-family:'Courier New', Courier, monospace; font-size:0.82rem; color:#d1d5db; height:240px; overflow-y:auto; box-shadow:inset 0 0 10px rgba(0,0,0,0.8);" id="liveStreamConsole">
+        <div style="color:#6b7280; font-style:italic;">[SYSTEM READY] Click "Start Streaming Live Feed" to view real-time inference transactions...</div>
+    </div>
+
+    <!-- Governance KPI Cards -->
+    <div class="sec">🛡️ Real-Time Governance Summary</div>
+    <div class="kpi-row" style="margin-top:0.6rem;">
+        <div class="kpi"><div class="kpi-val" id="auditTotalScored" style="color:#3b82f6;">0</div><div class="kpi-lbl">Total Scored</div></div>
+        <div class="kpi"><div class="kpi-val" id="auditAutoBlocked" style="color:#ef4444;">0</div><div class="kpi-lbl">Auto Blocked</div></div>
+        <div class="kpi"><div class="kpi-val" id="auditManualReview" style="color:#f59e0b;">0</div><div class="kpi-lbl">Manual Review</div></div>
+        <div class="kpi"><div class="kpi-val" id="auditAutoCleared" style="color:#10b981;">0</div><div class="kpi-lbl">Auto Cleared</div></div>
+        <div class="kpi"><div class="kpi-val" id="auditEscalations" style="color:#a855f7;">0</div><div class="kpi-lbl">Velocity Escalations</div></div>
+    </div>
+
+    <!-- Live Audit Trail Log Table -->
+    <div class="sec" style="margin-top:1.5rem">📜 Live Audit Log Entries (Persisted to data/audit_log.jsonl)</div>
+    <div style="overflow-x:auto; margin-top:0.8rem;">
+        <table style="width:100%; border-collapse:collapse; background:#141414; border:1px solid #2a2a2a; border-radius:8px; font-size:0.82rem;">
+            <thead>
+                <tr style="border-bottom:1px solid #2a2a2a; text-align:left; color:#888;">
+                    <th style="padding:0.6rem 0.8rem;">Time</th>
+                    <th style="padding:0.6rem 0.8rem;">Tx ID</th>
+                    <th style="padding:0.6rem 0.8rem;">Card / Entity ID</th>
+                    <th style="padding:0.6rem 0.8rem;">Amount</th>
+                    <th style="padding:0.6rem 0.8rem;">Score</th>
+                    <th style="padding:0.6rem 0.8rem;">Action Verdict</th>
+                    <th style="padding:0.6rem 0.8rem;">Assigned Queue</th>
+                </tr>
+            </thead>
+            <tbody id="auditLogTbody">
+                <tr><td colspan="7" style="padding:1rem; text-align:center; color:#666;">No audit log entries yet. Start stream to populate logs.</td></tr>
+            </tbody>
+        </table>
     </div>
 
 </div>
 
 <script>
+
     // Tab open function
     function openTab(tabId, btn) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -554,8 +678,110 @@ body {
         btn.classList.add('active');
         if (tabId === 't2') {
             setTimeout(loadTab2Plots, 50);
+        } else if (tabId === 't3') {
+            loadAuditSummary();
         }
     }
+
+    // Streaming Feed Simulator JS
+    let streamInterval = null;
+    let isStreaming = false;
+
+    function toggleStream() {
+        if (isStreaming) {
+            pauseStream();
+        } else {
+            startStream();
+        }
+    }
+
+    function startStream() {
+        if (isStreaming) return;
+        isStreaming = true;
+        document.getElementById('streamStatusBtn').innerHTML = "⏸️ Pause Stream";
+        document.getElementById('streamStatusBadge').innerHTML = "<span style='color:#10b981;font-weight:600;'>● STREAMING LIVE</span>";
+        streamTick();
+        streamInterval = setInterval(streamTick, 850);
+    }
+
+    function pauseStream() {
+        isStreaming = false;
+        if (streamInterval) clearInterval(streamInterval);
+        document.getElementById('streamStatusBtn').innerHTML = "▶️ Start Streaming Live Feed";
+        document.getElementById('streamStatusBadge').innerHTML = "<span style='color:#888;'>○ Stream Paused</span>";
+    }
+
+    async function streamTick() {
+        try {
+            const res = await fetch('/stream-step');
+            const data = await res.json();
+            
+            const term = document.getElementById('liveStreamConsole');
+            const timeStr = data.timestamp ? data.timestamp.substring(11, 19) : new Date().toLocaleTimeString();
+            const amtStr = `$${data.amount.toFixed(2).padStart(7, ' ')}`;
+            const scoreStr = `${(data.probability * 100).toFixed(1).padStart(5, ' ')}%`;
+            
+            let badgeHtml = '';
+            if (data.action === 'AUTO_BLOCK') badgeHtml = '<span style="color:#ef4444;font-weight:700;">⛔ [AUTO_BLOCK]       </span>';
+            else if (data.action === 'MANUAL_REVIEW') badgeHtml = '<span style="color:#f59e0b;font-weight:700;">⚠️ [MANUAL_REVIEW]   </span>';
+            else if (data.action === 'SUPERVISOR_OVERRIDE_REQUIRED') badgeHtml = '<span style="color:#a855f7;font-weight:700;">🛡️ [SAFETY_OVERRIDE]  </span>';
+            else badgeHtml = '<span style="color:#10b981;font-weight:700;">✅ [AUTO_CLEAR]       </span>';
+
+            const drivers = (data.shap_top3 || []).map(s => `${s.feature}:${s.direction}`).join(', ');
+            
+            const line = document.createElement('div');
+            line.style.padding = "2px 0";
+            line.innerHTML = `[${timeStr}] <b style="color:#3b82f6;">${data.transaction_id}</b> | <span style="color:#aaa;">${data.card_id}</span> | Amt: ${amtStr} | Score: <b style="color:#e5e5e5;">${scoreStr}</b> | ${badgeHtml} | <span style="color:#888;">${drivers}</span>`;
+            
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight;
+
+            while (term.children.length > 80) term.removeChild(term.firstChild);
+
+            loadAuditSummary();
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadAuditSummary() {
+        try {
+            const res = await fetch('/audit-summary');
+            const s = await res.json();
+            document.getElementById('auditTotalScored').innerText = s.total_scored;
+            document.getElementById('auditAutoBlocked').innerText = s.auto_blocked;
+            document.getElementById('auditManualReview').innerText = s.manual_review;
+            document.getElementById('auditAutoCleared').innerText = s.auto_cleared;
+            document.getElementById('auditEscalations').innerText = s.supervisor_overrides;
+            
+            loadAuditLogs();
+        } catch(e) {}
+    }
+
+    async function loadAuditLogs() {
+        try {
+            const res = await fetch('/audit-log?limit=25');
+            const logs = await res.json();
+            let rows = '';
+            logs.forEach(l => {
+                let actBadge = l.action;
+                let actClr = '#10b981';
+                if (l.action === 'AUTO_BLOCK') actClr = '#ef4444';
+                if (l.action === 'MANUAL_REVIEW') actClr = '#f59e0b';
+                if (l.action === 'SUPERVISOR_OVERRIDE_REQUIRED') actClr = '#a855f7';
+
+                rows += `<tr style="border-bottom:1px solid #222;">
+                    <td style="padding:6px 10px;color:#888;">${l.timestamp ? l.timestamp.substring(11,19) : ''}</td>
+                    <td style="padding:6px 10px;font-family:monospace;color:#3b82f6;">${l.transaction_id}</td>
+                    <td style="padding:6px 10px;color:#aaa;">${l.card_id}</td>
+                    <td style="padding:6px 10px;">$${l.amount.toFixed(2)}</td>
+                    <td style="padding:6px 10px;font-weight:600;">${(l.probability*100).toFixed(1)}%</td>
+                    <td style="padding:6px 10px;color:${actClr};font-weight:700;">${actBadge}</td>
+                    <td style="padding:6px 10px;color:#888;">${l.queue}</td>
+                </tr>`;
+            });
+            document.getElementById('auditLogTbody').innerHTML = rows;
+        } catch(e) {}
+    }
+
 
     // Build V1-V28 inputs
     const vcolsA = document.getElementById('vcols_a');

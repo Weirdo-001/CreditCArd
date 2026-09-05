@@ -215,6 +215,47 @@ def generate_shap_plots(model, X_test_sample):
     return shap_values, path_global, path_beeswarm
 
 
+def plot_financial_impact_matrix(y_test, y_prob, threshold: float, avg_fraud_value: float = 125.0, friction_cost: float = 15.0, missed_cost: float = 150.0):
+    """Translates ML metrics into financial dollar value & risk metrics."""
+    y_pred = (y_prob >= threshold).astype(int)
+    cm = confusion_matrix(y_test, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+
+    prevented_fraud_val = tp * avg_fraud_value
+    false_decline_cost  = fp * friction_cost
+    missed_fraud_loss   = fn * missed_cost
+    net_value_saved     = prevented_fraud_val - false_decline_cost
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    categories = ["Fraud Loss Prevented", "Customer Friction Cost", "Missed Fraud Loss", "Net Value Saved"]
+    values = [prevented_fraud_val, false_decline_cost, missed_fraud_loss, net_value_saved]
+    colors = [COLORS["rf"], COLORS["if"], COLORS["fraud"], COLORS["lr"]]
+
+    bars = ax.bar(categories, values, color=colors, edgecolor="#0f1117", width=0.55)
+    ax.set_ylabel("USD Value ($)")
+    ax.set_title(f"Financial Impact & Risk ROI Analysis (Test Set: {len(y_test):,} txs)", fontsize=13, pad=12, color="white")
+    ax.grid(True, axis="y", alpha=0.3)
+
+    for bar, val in zip(bars, values):
+        height = bar.get_height()
+        ax.annotate(f"${val:,.0f}",
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 5),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=11, fontweight='bold', color="white")
+
+    plt.tight_layout()
+    path = os.path.join(REPORTS_DIR, "financial_impact.png")
+    plt.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"[evaluate] Saved Financial Impact → {path}")
+    print(f"  💰 Fraud Losses Prevented: ${prevented_fraud_val:,.2f} ({tp} cases)")
+    print(f"  ⚠️ False Decline Friction Cost: ${false_decline_cost:,.2f} ({fp} cases)")
+    print(f"  ❌ Missed Fraud Loss: ${missed_fraud_loss:,.2f} ({fn} cases)")
+    print(f"  💵 Net Value Saved: ${net_value_saved:,.2f}")
+    return path
+
+
 def run_evaluation():
     y_test, y_prob_xgb, y_prob_lr, y_prob_rf, y_prob_if, config = load_artifacts()
     threshold = config.get("best_threshold", 0.655444)
@@ -229,6 +270,7 @@ def run_evaluation():
     plot_pr_curves( y_test, y_prob_xgb, y_prob_lr, y_prob_rf, y_prob_if)
     plot_confusion_matrix(y_test, y_prob_rf, threshold, model_name=model_name)
     plot_threshold_vs_f1(y_test, y_prob_rf)
+    plot_financial_impact_matrix(y_test, y_prob_rf, threshold)
 
     rf_pipeline = joblib.load(os.path.join(MODELS_DIR, "model.pkl"))
     rf_clf = rf_pipeline.named_steps["clf"]   # extract from ImbPipeline
@@ -239,3 +281,4 @@ def run_evaluation():
 
 if __name__ == "__main__":
     run_evaluation()
+

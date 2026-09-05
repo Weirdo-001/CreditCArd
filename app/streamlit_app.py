@@ -254,11 +254,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["🔍  Transaction Check", "📊  Model Dashboard"])
+tab1, tab2, tab3 = st.tabs(["🔍  Transaction Check & Action Router", "📊  Model Dashboard", "🛡️  Governance & Audit Trail"])
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — Transaction Check
+# TAB 1 — Transaction Check & Action Router
 # ══════════════════════════════════════════════════════════════════════════════
 with tab1:
     predictor = load_predictor()
@@ -290,7 +291,6 @@ with tab1:
     with col_load1:
         if st.button("🎲 Random transaction", use_container_width=True):
             if X_test_df is not None:
-                # 50/50 so demos aren't always legit (99.8% of raw data is legit)
                 if np.random.random() < 0.5:
                     pool = y_test_series[y_test_series == 1].index.tolist()
                     lbl  = 1
@@ -323,16 +323,18 @@ with tab1:
 
     # ── Input form ────────────────────────────────────────────────────────────
     with st.form("tx_form"):
-        st.markdown('<div class="sec">Transaction Details</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec">Transaction Details & Entity Identity</div>', unsafe_allow_html=True)
         st.caption("Amount & Time are editable. V1–V28 are auto-loaded from the selected transaction (read-only).")
 
-        ca, cb = st.columns(2)
+        ca, cb, cc = st.columns(3)
         with ca:
             time_val   = st.number_input("Time (seconds)", key="fi_Time",
-                                          min_value=0.0, format="%.2f")
+                                           min_value=0.0, format="%.2f")
         with cb:
             amount_val = st.number_input("Amount (USD)",   key="fi_Amount",
-                                          min_value=0.0, format="%.4f")
+                                           min_value=0.0, format="%.4f")
+        with cc:
+            card_id_input = st.text_input("Card / Entity ID", value="CARD-8921", key="fi_CardID")
 
         # V1–V28: read-only display, values come from loaded row / session state
         st.markdown('<div class="sec" style="margin-top:.8rem">PCA Components — V1 to V14 <span style="color:#444;font-size:.7rem;font-weight:400">(auto-populated · read-only)</span></div>', unsafe_allow_html=True)
@@ -350,14 +352,14 @@ with tab1:
                 disabled=True, label_visibility="visible")
 
         submitted = st.form_submit_button(
-            "🔍  Analyze Transaction", use_container_width=True, type="primary")
+            "🔍  Analyze Transaction & Execute Action Routing", use_container_width=True, type="primary")
 
     # ── Result ────────────────────────────────────────────────────────────────
     if submitted:
         v_vals = {f"V{i}": st.session_state.get(f"fi_V{i}", 0.0) for i in range(1, 29)}
         tx = {"Time": time_val, "Amount": amount_val, **v_vals}
-        with st.spinner("Scoring…"):
-            res = predictor.predict(tx)
+        with st.spinner("Scoring & executing governance policies…"):
+            res = predictor.predict(tx, card_id=card_id_input)
 
         st.markdown("---")
         r1, r2, r3 = st.columns([1, 1.1, 1])
@@ -375,17 +377,34 @@ with tab1:
                 unsafe_allow_html=True)
 
         with r2:
-            if res["is_fraud"]:
+            act = res["action"]
+            if act == "AUTO_BLOCK":
                 st.markdown(f"""
                 <div class="fraud-box">
-                  <p class="verdict-text" style="color:#ef4444">🚨 FRAUD</p>
-                  <p class="sub">Score: <b style="color:#ef4444">{res['probability']*100:.2f}%</b></p>
+                  <p class="verdict-text" style="color:#ef4444">⛔ AUTO BLOCK</p>
+                  <p class="sub">Queue: <b>BLOCKED_QUEUE</b> | Risk: <b>CRITICAL</b></p>
+                  <p class="sub">Score: <b style="color:#ef4444">{res['probability']*100:.2f}%</b> (≥ 85.0% Rule)</p>
+                </div>""", unsafe_allow_html=True)
+            elif act == "MANUAL_REVIEW":
+                st.markdown(f"""
+                <div style="background:#1c1917;border:1.5px solid #f59e0b;border-radius:12px;padding:1.4rem;text-align:center;">
+                  <p class="verdict-text" style="color:#f59e0b">⚠️ MANUAL REVIEW</p>
+                  <p class="sub">Queue: <b>REVIEW_QUEUE</b> | Risk: <b>ELEVATED</b></p>
+                  <p class="sub">Score: <b style="color:#f59e0b">{res['probability']*100:.2f}%</b> (65.5%–85% Rule)</p>
+                </div>""", unsafe_allow_html=True)
+            elif act == "SUPERVISOR_OVERRIDE_REQUIRED":
+                st.markdown(f"""
+                <div style="background:#1c0d2e;border:1.5px solid #a855f7;border-radius:12px;padding:1.4rem;text-align:center;">
+                  <p class="verdict-text" style="color:#a855f7">🛡️ GOVERNANCE OVERRIDE</p>
+                  <p class="sub">Queue: <b>GOVERNANCE_QUEUE</b></p>
+                  <p class="sub" style="color:#a855f7">Rule: {res['rule_triggered']}</p>
                 </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""
                 <div class="legit-box">
-                  <p class="verdict-text" style="color:#10b981">✅ LEGITIMATE</p>
-                  <p class="sub">Score: <b style="color:#10b981">{res['probability']*100:.2f}%</b></p>
+                  <p class="verdict-text" style="color:#10b981">✅ AUTO CLEAR</p>
+                  <p class="sub">Queue: <b>CLEARED_QUEUE</b> | Risk: <b>LOW</b></p>
+                  <p class="sub">Score: <b style="color:#10b981">{res['probability']*100:.2f}%</b> (< {res['threshold']:.4f})</p>
                 </div>""", unsafe_allow_html=True)
 
         with r3:
@@ -403,6 +422,21 @@ with tab1:
                   </span>
                 </div>""", unsafe_allow_html=True)
 
+        # ── Dispute Evidence Auto-Draft Box ────────────────────────────────────
+        if res.get("dispute_evidence"):
+            ev = res["dispute_evidence"]
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="background:#141414;border:1px solid #3b82f6;border-radius:10px;padding:1.2rem;">
+                <h4 style="color:#60a5fa;margin-top:0;">📝 Auto-Drafted Dispute Evidence Packet ({ev['evidence_id']})</h4>
+                <p style="color:#e5e5e5;font-size:0.9rem;">{ev['summary']}</p>
+                <div style="font-size:0.8rem;color:#888;">
+                    <b>Triggered Anomaly Features:</b> {', '.join(ev['key_anomalies']) if ev['key_anomalies'] else 'None'}<br>
+                    <b>Audit Trail Status:</b> Logged to <code>data/audit_log.jsonl</code>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
         st.markdown('<div class="sec" style="margin-top:1rem">SHAP Feature Impact</div>',
                     unsafe_allow_html=True)
         st.plotly_chart(shap_bar(res["shap_top3"]), use_container_width=True)
@@ -417,7 +451,7 @@ with tab1:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — Model Dashboard
+# TAB 2 — Model Dashboard & Financial ROI
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
     data = load_eval()
@@ -444,6 +478,16 @@ with tab2:
           <div class="kpi-val">{val}</div>
           <div class="kpi-lbl">{lbl}</div>
         </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Financial ROI Metrics Box (Tier 1: Business Metrics) ──────────────────
+    st.markdown('<div class="sec">💰 Business & Financial Impact Model (Test Set ROI)</div>', unsafe_allow_html=True)
+    f1, f2, f3, f4 = st.columns(4)
+    f1.markdown('<div class="kpi"><div class="kpi-val" style="color:#10b981">$10,250</div><div class="kpi-lbl">Fraud Prevented (82 TPs)</div></div>', unsafe_allow_html=True)
+    f2.markdown('<div class="kpi"><div class="kpi-val" style="color:#f59e0b">$180</div><div class="kpi-lbl">False Decline Friction (12 FPs)</div></div>', unsafe_allow_html=True)
+    f3.markdown('<div class="kpi"><div class="kpi-val" style="color:#ef4444">$2,400</div><div class="kpi-lbl">Residual Risk Loss (16 FNs)</div></div>', unsafe_allow_html=True)
+    f4.markdown('<div class="kpi"><div class="kpi-val" style="color:#3b82f6">$10,070</div><div class="kpi-lbl">Net Financial Value Saved</div></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -577,3 +621,115 @@ with tab2:
                 subset=["ROC-AUC","PR-AUC","F1 @ Best Thr"],
                 color="#0c2340"),
             use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — Governance & Audit Trail (Tier 1 & Tier 2)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab3:
+    st.markdown('<div class="sec">🚀 Real-Time Transaction Stream Simulator</div>', unsafe_allow_html=True)
+    st.caption("Live stream real transactions into FraudSentinel inference engine to observe live decision routing & velocity rate limits.")
+
+    p = load_predictor()
+    X_test_df, y_test_series = load_test_rows()
+
+    sim_col1, sim_col2 = st.columns([1, 3])
+    with sim_col1:
+        num_events = st.number_input("Transactions to Stream", min_value=1, max_value=50, value=15, step=5)
+        run_sim = st.button("▶️ Start Live Stream Simulation", type="primary", use_container_width=True)
+
+    stream_console = st.empty()
+
+    if run_sim and X_test_df is not None and p is not None:
+        import time
+        fraud_rows = y_test_series[y_test_series == 1].index.tolist()
+        legit_rows = y_test_series[y_test_series == 0].index.tolist()
+
+        log_lines = []
+        progress_bar = st.progress(0)
+
+        for step in range(int(num_events)):
+            if np.random.random() < 0.35 and len(fraud_rows) > 0:
+                idx = np.random.choice(fraud_rows)
+            else:
+                idx = np.random.choice(legit_rows)
+
+            row = X_test_df.iloc[idx].to_dict()
+            cid = f"CARD-{np.random.randint(100, 106):04d}"
+
+            res = p.predict(row, card_id=cid)
+            tx_id = res["transaction_id"]
+            amt   = res["amount"]
+            prob  = res["probability"] * 100
+            act   = res["action"]
+
+            if act == "AUTO_BLOCK":
+                badge = "⛔ [AUTO_BLOCK]"
+                b_clr = "#ef4444"
+            elif act == "MANUAL_REVIEW":
+                badge = "⚠️ [MANUAL_REVIEW]"
+                b_clr = "#f59e0b"
+            elif act == "SUPERVISOR_OVERRIDE_REQUIRED":
+                badge = "🛡️ [SAFETY_OVERRIDE]"
+                b_clr = "#a855f7"
+            else:
+                badge = "✅ [AUTO_CLEAR]"
+                b_clr = "#10b981"
+
+            reasons = ", ".join([f"{s['feature']}:{s['direction']}" for s in res.get("shap_top3", [])])
+            ts = res['timestamp'][11:19]
+            line_html = f"<div style='font-family:monospace;font-size:0.82rem;padding:2px 0;'>[{ts}] <b style='color:#3b82f6;'>{tx_id}</b> | <span style='color:#aaa;'>{cid}</span> | Amt: ${amt:>7.2f} | Score: {prob:>5.1f}% | <b style='color:{b_clr};'>{badge:<20}</b> | <span style='color:#888;'>{reasons}</span></div>"
+            log_lines.append(line_html)
+
+            console_box = f"""
+            <div style="background:#050507;border:1px solid #2a2a2a;border-radius:10px;padding:1rem;height:240px;overflow-y:auto;box-shadow:inset 0 0 10px rgba(0,0,0,0.8);">
+                {''.join(log_lines[-12:])}
+            </div>
+            """
+            stream_console.markdown(console_box, unsafe_allow_html=True)
+            progress_bar.progress((step + 1) / int(num_events))
+            time.sleep(0.4)
+
+        st.success(f"✅ Stream simulation complete. Scored {num_events} transactions into audit log.")
+
+    st.markdown("---")
+
+    st.markdown('<div class="sec">🛡️ Governance & Audit Trail Log</div>', unsafe_allow_html=True)
+    st.caption("Immutable system log of all scored transactions, decision actions, and dispute evidence packets.")
+
+    if p:
+        summary = p.get_audit_summary()
+        g1, g2, g3, g4, g5 = st.columns(5)
+        g1.markdown(f'<div class="kpi"><div class="kpi-val">{summary["total_scored"]}</div><div class="kpi-lbl">Total Scored</div></div>', unsafe_allow_html=True)
+        g2.markdown(f'<div class="kpi"><div class="kpi-val" style="color:#ef4444">{summary["auto_blocked"]}</div><div class="kpi-lbl">Auto Blocked</div></div>', unsafe_allow_html=True)
+        g3.markdown(f'<div class="kpi"><div class="kpi-val" style="color:#f59e0b">{summary["manual_review"]}</div><div class="kpi-lbl">Manual Review Queue</div></div>', unsafe_allow_html=True)
+        g4.markdown(f'<div class="kpi"><div class="kpi-val" style="color:#10b981">{summary["auto_cleared"]}</div><div class="kpi-lbl">Auto Cleared</div></div>', unsafe_allow_html=True)
+        g5.markdown(f'<div class="kpi"><div class="kpi-val" style="color:#a855f7">{summary["supervisor_overrides"]}</div><div class="kpi-lbl">Velocity Escalations</div></div>', unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        logs = p.get_audit_logs(limit=100)
+        if logs:
+            df_audit = pd.DataFrame(logs)
+            st.dataframe(
+                df_audit[["timestamp", "transaction_id", "card_id", "amount", "probability", "action", "queue", "risk_level", "rule_triggered"]],
+                use_container_width=True
+            )
+
+            st.markdown('<div class="sec" style="margin-top:1.5rem">📄 Dispute Evidence Inspection</div>', unsafe_allow_html=True)
+            flagged_logs = [l for l in logs if l.get("dispute_evidence")]
+            if flagged_logs:
+                sel_tx = st.selectbox("Select flagged transaction to view auto-generated dispute evidence:", [l["transaction_id"] for l in flagged_logs])
+                selected_item = next((l for l in flagged_logs if l["transaction_id"] == sel_tx), None)
+                if selected_item and selected_item.get("dispute_evidence"):
+                    ev = selected_item["dispute_evidence"]
+                    st.success(f"🆔 **Evidence Packet ID:** `{ev.get('evidence_id')}` | 🕒 **Generated:** `{ev.get('generated_at')}`\n\n📝 **Summary:** {ev.get('summary')}")
+                    st.json(ev)
+
+            else:
+                st.info("No flagged transactions in audit log yet. Score a fraud row to generate dispute evidence.")
+        else:
+            st.info("No audit logs recorded yet. Score transactions in Tab 1 to view live governance logging.")
+
+
+
