@@ -233,5 +233,5 @@ The repository includes a ready-to-use `render.yaml` for automatic deployment on
 
 ## 📝 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License.
 
