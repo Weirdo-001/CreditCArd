@@ -77,7 +77,7 @@ class FraudPredictor:
         Score a single transaction & run Action Routing, Safety Rules, Dispute Evidence, and Audit Trail.
         """
         tx_id = f"TX-{uuid.uuid4().hex[:10].upper()}"
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now().astimezone().isoformat(timespec="milliseconds")
         amount = float(transaction.get("Amount", 0.0))
         # Stable process-independent hex hash with 16.7M ID space
         v1_str = str(transaction.get('V1', 0.0)).encode('utf-8')

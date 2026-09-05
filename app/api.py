@@ -639,7 +639,7 @@ body {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
         <div>
             <div class="sec" style="margin-bottom:0.2rem;">🚀 Held-Out Test Set Replay</div>
-            <div class="st-caption">This replays real transactions from the held-out test set through the live model and governance pipeline to simulate streaming inference. Timestamps and card groupings are generated for the demo because the dataset contains no live timing or real card IDs.</div>
+            <div class="st-caption">This replays real transactions from the held-out test set through the live model and governance pipeline to simulate streaming inference. Each event is timestamped with the server's actual system time; card groupings are generated for the demo because the dataset contains no real card IDs.</div>
         </div>
         <div style="display:flex; gap:0.8rem; align-items:center;">
             <div id="streamStatusBadge" style="font-size:0.85rem;"><span style="color:#888;">○ Stream Paused</span></div>
@@ -647,7 +647,6 @@ body {
                 <input id="streamCount" type="number" min="1" max="50" value="15" style="width:4.5rem;margin-left:.3rem;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:6px;padding:.45rem;">
             </label>
             <button id="streamStatusBtn" class="submit-btn" style="padding:0.5rem 1.2rem; font-size:0.85rem;" onclick="toggleStream()">▶️ Start Streaming Live Feed</button>
-            <button class="st-btn" style="padding:0.5rem 1rem;" onclick="streamTick()">🎲 Stream 1 Event</button>
         </div>
     </div>
 
@@ -705,8 +704,8 @@ body {
     }
 
     // Streaming Feed Simulator JS
-    let streamInterval = null;
     let isStreaming = false;
+    let streamRunId = 0;
 
     function toggleStream() {
         if (isStreaming) {
@@ -716,29 +715,31 @@ body {
         }
     }
 
-    function startStream() {
+    async function startStream() {
         if (isStreaming) return;
         isStreaming = true;
+        const runId = ++streamRunId;
+        const count = Math.max(1, Math.min(50, parseInt(document.getElementById('streamCount').value || '15', 10)));
+        const term = document.getElementById('liveStreamConsole');
+        term.innerHTML = `<div style="color:#6b7280;font-style:italic;">[REPLAY STARTED] Scoring exactly ${count} held-out transactions...</div>`;
         document.getElementById('streamStatusBtn').innerHTML = "⏸️ Pause Stream";
         document.getElementById('streamStatusBadge').innerHTML = "<span style='color:#10b981;font-weight:600;'>● STREAMING LIVE</span>";
-        streamTick();
-        const count = Math.max(1, Math.min(50, parseInt(document.getElementById('streamCount').value || '15', 10)));
-        let emitted = 1;
-        streamInterval = setInterval(() => {
-            if (emitted >= count) {
-                pauseStream();
-                return;
+        for (let emitted = 0; emitted < count && isStreaming && runId === streamRunId; emitted += 1) {
+            await streamTick();
+            if (emitted + 1 < count && isStreaming && runId === streamRunId) {
+                await new Promise(resolve => setTimeout(resolve, 850));
             }
-            emitted += 1;
-            streamTick();
-        }, 850);
+        }
+        if (runId === streamRunId) pauseStream(true);
     }
 
-    function pauseStream() {
+    function pauseStream(completed = false) {
         isStreaming = false;
-        if (streamInterval) clearInterval(streamInterval);
+        streamRunId += 1;
         document.getElementById('streamStatusBtn').innerHTML = "▶️ Start Streaming Live Feed";
-        document.getElementById('streamStatusBadge').innerHTML = "<span style='color:#888;'>○ Stream Paused</span>";
+        document.getElementById('streamStatusBadge').innerHTML = completed
+            ? "<span style='color:#10b981;'>● Replay complete</span>"
+            : "<span style='color:#888;'>○ Stream Paused</span>";
     }
 
     async function streamTick() {
