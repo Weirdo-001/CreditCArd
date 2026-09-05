@@ -452,7 +452,7 @@ body {
 <div class="tabs-header">
     <button class="tab-button active" onclick="openTab('t1', this)">🔍 &nbsp; Transaction Check</button>
     <button class="tab-button" onclick="openTab('t2', this)">📊 &nbsp; Model Dashboard</button>
-    <button class="tab-button" onclick="openTab('t3', this)">🚀 &nbsp; Live Stream & Governance Audit</button>
+    <button class="tab-button" onclick="openTab('t3', this)">🚀 &nbsp; Replay Stream & Governance Audit</button>
 </div>
 
 
@@ -484,7 +484,7 @@ body {
             </div>
             <div class="field-group">
                 <label>Card / Entity ID</label>
-                <input type="text" id="card_id" value="CARD-8921">
+                <input type="text" id="card_id" value="CARD-8921" readonly aria-readonly="true">
             </div>
         </div>
 
@@ -638,8 +638,8 @@ body {
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
         <div>
-            <div class="sec" style="margin-bottom:0.2rem;">🚀 Real-Time Transaction Stream Simulator</div>
-            <div class="st-caption">Live stream transactions directly into FraudSentinel inference engine to observe decision routing & velocity rules.</div>
+            <div class="sec" style="margin-bottom:0.2rem;">🚀 Held-Out Test Set Replay</div>
+            <div class="st-caption">This replays real transactions from the held-out test set through the live model and governance pipeline to simulate streaming inference. Timestamps and card groupings are generated for the demo because the dataset contains no live timing or real card IDs.</div>
         </div>
         <div style="display:flex; gap:0.8rem; align-items:center;">
             <div id="streamStatusBadge" style="font-size:0.85rem;"><span style="color:#888;">○ Stream Paused</span></div>
