@@ -657,8 +657,9 @@ body {
 
     <!-- Governance KPI Cards -->
     <div class="sec">🛡️ Real-Time Governance Summary</div>
-    <div class="kpi-row" style="margin-top:0.6rem;">
-        <div class="kpi"><div class="kpi-val" id="auditTotalScored" style="color:#3b82f6;">0</div><div class="kpi-lbl">Total Scored</div></div>
+    <div class="kpi-row" style="margin-top:0.6rem;grid-template-columns:repeat(6, minmax(0, 1fr));">
+        <div class="kpi"><div class="kpi-val" id="auditTotalScored" style="color:#3b82f6;">0</div><div class="kpi-lbl">All-Time Scored</div></div>
+        <div class="kpi"><div class="kpi-val" id="currentReplayCount" style="color:#60a5fa;">0 / 15</div><div class="kpi-lbl">Current Replay</div></div>
         <div class="kpi"><div class="kpi-val" id="auditAutoBlocked" style="color:#ef4444;">0</div><div class="kpi-lbl">Auto Blocked</div></div>
         <div class="kpi"><div class="kpi-val" id="auditManualReview" style="color:#f59e0b;">0</div><div class="kpi-lbl">Manual Review</div></div>
         <div class="kpi"><div class="kpi-val" id="auditAutoCleared" style="color:#10b981;">0</div><div class="kpi-lbl">Auto Cleared</div></div>
@@ -671,7 +672,7 @@ body {
         <table style="width:100%; border-collapse:collapse; background:#141414; border:1px solid #2a2a2a; border-radius:8px; font-size:0.82rem;">
             <thead>
                 <tr style="border-bottom:1px solid #2a2a2a; text-align:left; color:#888;">
-                    <th style="padding:0.6rem 0.8rem;">Time</th>
+                    <th style="padding:0.6rem 0.8rem;">Time (Your Local Time)</th>
                     <th style="padding:0.6rem 0.8rem;">Tx ID</th>
                     <th style="padding:0.6rem 0.8rem;">Card / Entity ID</th>
                     <th style="padding:0.6rem 0.8rem;">Amount</th>
@@ -706,6 +707,8 @@ body {
     // Streaming Feed Simulator JS
     let isStreaming = false;
     let streamRunId = 0;
+    let currentReplayCount = 0;
+    let currentReplayTarget = 15;
 
     function toggleStream() {
         if (isStreaming) {
@@ -720,12 +723,16 @@ body {
         isStreaming = true;
         const runId = ++streamRunId;
         const count = Math.max(1, Math.min(50, parseInt(document.getElementById('streamCount').value || '15', 10)));
+        currentReplayCount = 0;
+        currentReplayTarget = count;
+        document.getElementById('currentReplayCount').innerText = `0 / ${count}`;
         const term = document.getElementById('liveStreamConsole');
         term.innerHTML = `<div style="color:#6b7280;font-style:italic;">[REPLAY STARTED] Scoring exactly ${count} held-out transactions...</div>`;
         document.getElementById('streamStatusBtn').innerHTML = "⏸️ Pause Stream";
         document.getElementById('streamStatusBadge').innerHTML = "<span style='color:#10b981;font-weight:600;'>● STREAMING LIVE</span>";
         for (let emitted = 0; emitted < count && isStreaming && runId === streamRunId; emitted += 1) {
-            await streamTick();
+            const scored = await streamTick();
+            if (!scored) break;
             if (emitted + 1 < count && isStreaming && runId === streamRunId) {
                 await new Promise(resolve => setTimeout(resolve, 850));
             }
@@ -748,7 +755,7 @@ body {
             const data = await res.json();
             
             const term = document.getElementById('liveStreamConsole');
-            const timeStr = data.timestamp ? data.timestamp.substring(11, 19) : new Date().toLocaleTimeString();
+            const timeStr = data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
             const amtStr = `$${data.amount.toFixed(2).padStart(7, ' ')}`;
             const scoreStr = `${(data.probability * 100).toFixed(1).padStart(5, ' ')}%`;
             
@@ -769,8 +776,12 @@ body {
 
             while (term.children.length > 80) term.removeChild(term.firstChild);
 
+            currentReplayCount += 1;
+            document.getElementById('currentReplayCount').innerText = `${currentReplayCount} / ${currentReplayTarget}`;
+
             loadAuditSummary();
-        } catch(e) { console.error(e); }
+            return true;
+        } catch(e) { console.error(e); return false; }
     }
 
     async function loadAuditSummary() {
@@ -800,7 +811,7 @@ body {
                 if (l.action === 'SUPERVISOR_OVERRIDE_REQUIRED') actClr = '#a855f7';
 
                 rows += `<tr style="border-bottom:1px solid #222;">
-                    <td style="padding:6px 10px;color:#888;">${l.timestamp ? l.timestamp.substring(11,19) : ''}</td>
+                    <td style="padding:6px 10px;color:#888;">${l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : ''}</td>
                     <td style="padding:6px 10px;font-family:monospace;color:#3b82f6;">${l.transaction_id}</td>
                     <td style="padding:6px 10px;color:#aaa;">${l.card_id}</td>
                     <td style="padding:6px 10px;">$${l.amount.toFixed(2)}</td>
